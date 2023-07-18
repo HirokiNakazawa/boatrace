@@ -1,10 +1,32 @@
-import argparse
-import pandas as pd
-from datetime import datetime, timedelta
-
 import utils
+import pandas as pd
+import os
+import argparse
+import logging
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+load_dotenv()
 
-DEBUG = True
+
+logger = logging.getLogger(__name__)
+
+fmt = "%(asctime)s %(levelname)s %(name)s :%(message)s"
+logging.basicConfig(
+    filename="./logs/boatrace.log",
+    level=logging.INFO,
+    format=fmt,
+)
+
+rank = int(os.getenv("RANK"))
+class_int = os.getenv("CLASS_INT")
+number_del = os.getenv("NUMBER_DEL")
+seed = int(os.getenv("SEED"))
+
+
+class Log:
+    @staticmethod
+    def info(str):
+        logger.info(str)
 
 
 class BoatRace:
@@ -21,6 +43,32 @@ class BoatRace:
 
             # データを保存
             utils.save_scrape_data(results, infos, year)
+
+        elif self.args.model_create:
+            # モデルを作成する
+            results_all = utils.get_results_merge_infos()
+
+            # カテゴリ変数化、前処理
+            results_c = utils.process_categorical(
+                results_all,
+                rank=rank,
+                class_int=class_int,
+                number_del=number_del
+            )
+
+            # モデル作成
+            lgb_train, lgb_valid, params = utils.get_lgb_train_valid(results_c)
+            params_o = utils.get_optuna_params(
+                params=params,
+                lgb_train=lgb_train,
+                lgb_valid=lgb_valid,
+                seed=seed
+            )
+            X_train, y_train, X_test, y_test = utils.get_train_test(results_c)
+            lgb_clf = utils.get_lgb_clf(params_o, X_train, y_train)
+
+            # モデルを保存
+            utils.save_model(lgb_clf)
 
         elif self.args.update:
             # 当日までのデータをスクレイピングし、データを更新する
@@ -86,7 +134,9 @@ if __name__ == "__main__":
                         action="store_true")
     parser.add_argument(
         "-c", "--check", help="現状のモデルの回収率を計算", action="store_true")
-    parser.add_argument("-m", "--model_update", help="モデルをアップデート",
+    parser.add_argument("-mc", "--model_create", help="モデルを作成",
+                        action="store_true")
+    parser.add_argument("-mu", "--model_update", help="モデルをアップデート",
                         action="store_true")
     parser.add_argument("-d", "--debug", help="デバッグ用", action="store_true")
     args = parser.parse_args()

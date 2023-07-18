@@ -82,13 +82,38 @@ class HandleDB:
         returns.to_sql("returns", con=engine, if_exists="append", index=False)
         Log.info("スクレイピングしたデータをデータベースに格納完了")
 
+    def get_results_all(self):
+        Log.info("resultsとinfosを結合し、データフレーム形式で返す")
+        sql = """
+            SELECT
+                r.race_id, r.position, r.boat_number, r.racer_number,
+                i.age, i.weight, i.class, i.national_win_rate,
+                i.national_second_rate, i.local_win_rate, i.local_second_rate,
+                i.motor_second_rate, i.boat_second_rate, i.date
+            FROM
+                results as r
+            JOIN
+                infos as i
+            ON
+                r.race_id = i.race_id
+            AND
+                r.boat_number = i.boat_number
+            AND
+                r.racer_number = i.racer_number
+            ORDER BY i.date DESC
+            """
+        df = pd.read_sql(
+            sql=sql,
+            con=engine,
+        )
+        return df
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-p", "--past", help="過去データをデータベースに格納", action="store_true")
     args = parser.parse_args()
-    print(args)
 
     handle_db = HandleDB(args)
     handle_db.main()

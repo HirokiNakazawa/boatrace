@@ -16,8 +16,7 @@ class ModelEvaluator:
         self.rank_join_df = self.rank_join(X)
 
     def predict_proba(self, X, std=True, minmax=True):
-        proba = pd.Series(self.model.predict_proba(
-            X)[:, 1], index=X.index)
+        proba = pd.Series(self.model.predict_proba(X)[:, 1], index=X.index)
         if std:
             def standard_scaler(x): return (x - x.mean()) / x.std(ddof=0)
             proba = proba.groupby(level=0).transform(standard_scaler)
@@ -28,7 +27,7 @@ class ModelEvaluator:
     def rank_join(self, X):
         df = X.copy()[["艇番"]]
         df["point"] = self.predict_proba(X)
-        df["rank"] = df.groupby(level=0).rank(ascending=False)
+        df["rank"] = df["point"].groupby(level=0).rank(ascending=False)
         return df
 
     def score(self, y_true, X):
@@ -109,6 +108,26 @@ class ModelEvaluator:
         return_rate = (money / (n_bets * 100)) * 100
         return n_bets, return_rate
 
+    def nirentan_nagashi(self, threshold=0.5):
+        pred_table = self.pred_table(threshold)
+        df = self.preprocessing_2(pred_table)
+        n_bets = len(df)
+        df = pd.merge(df, self.nirentan, how="left", on="race_id")
+        money = sum(df[df["pred_1"] == df["win_2t_1"]]["return_2t"])
+        return_rate = (money / (n_bets * 500)) * 100
+        return n_bets, return_rate
+
+    def nirentan_box(self, threshold=0.5):
+        pred_table = self.pred_table(threshold)
+        df = self.preprocessing_2(pred_table)
+        n_bets = len(df)
+        df = pd.merge(df, self.nirentan, how="left", on="race_id")
+        money = sum(df[(df["pred_1"] == df["win_2t_1"]) & (df["pred_2"] == df["win_2t_2"])]["return_2t"]) +\
+            sum(df[(df["pred_1"] == df["win_2t_2"]) & (
+                df["pred_2"] == df["win_2t_1"])]["return_2t"])
+        return_rate = (money / (n_bets * 200)) * 100
+        return n_bets, return_rate
+
     def nirenpuku_return(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = self.preprocessing_2(pred_table)
@@ -128,6 +147,45 @@ class ModelEvaluator:
         money = sum(df[(df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_2"]) &
                        (df["pred_3"] == df["win_3t_3"])]["return_3t"])
         return_rate = (money / (n_bets * 100)) * 100
+        return n_bets, return_rate
+
+    def sanrentan_nagashi_2(self, threshold=0.5):
+        pred_table = self.pred_table(threshold)
+        df = self.preprocessing_3(pred_table)
+        n_bets = len(df)
+        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
+        money = sum(df[df["pred_1"] == df["win_3t_1"]]["return_3t"])
+        return_rate = (money / (n_bets * 2000)) * 100
+        return n_bets, return_rate
+
+    def sanrentan_nagashi_3(self, threshold=0.5):
+        pred_table = self.pred_table(threshold)
+        df = self.preprocessing_3(pred_table)
+        n_bets = len(df)
+        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
+        money = sum(df[(df["pred_1"] == df["win_3t_1"]) & (
+            df["pred_2"] == df["win_3t_2"])]["return_3t"])
+        return_rate = (money / (n_bets * 400)) * 100
+        return n_bets, return_rate
+
+    def sanrentan_box(self, threshold=0.5):
+        pred_table = self.pred_table(threshold)
+        df = self.preprocessing_3(pred_table)
+        n_bets = len(df)
+        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
+        money = sum(df[(df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_2"]) &
+                       (df["pred_3"] == df["win_3t_3"])]["return_3t"]) +\
+            sum(df[(df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_3"]) &
+                   (df["pred_3"] == df["win_3t_2"])]["return_3t"]) +\
+            sum(df[(df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_1"]) &
+                   (df["pred_3"] == df["win_3t_3"])]["return_3t"]) +\
+            sum(df[(df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_3"]) &
+                   (df["pred_3"] == df["win_3t_1"])]["return_3t"]) +\
+            sum(df[(df["pred_1"] == df["win_3t_3"]) & (df["pred_2"] == df["win_3t_1"]) &
+                   (df["pred_3"] == df["win_3t_2"])]["return_3t"]) +\
+            sum(df[(df["pred_1"] == df["win_3t_3"]) & (df["pred_2"] == df["win_3t_2"]) &
+                   (df["pred_3"] == df["win_3t_1"])]["return_3t"])
+        return_rate = (money / (n_bets * 600)) * 100
         return n_bets, return_rate
 
     def sanrenpuku_return(self, threshold=0.5):

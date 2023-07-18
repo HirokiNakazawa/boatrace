@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from tqdm import tqdm
 import pandas as pd
 import pandas.tseries.offsets as offsets
+import lightgbm as lgb
+import optuna.integration.lightgbm as lgb_o
 
 from results import Results
 from infos import Infos
@@ -19,6 +21,9 @@ import handle_db
 
 
 def get_program_list(year: str = "2022", yesterday=False, today=False):
+    """
+    スクレイピングするプログラムリストを返す
+    """
     program_list = []
 
     if yesterday or today:
@@ -42,6 +47,9 @@ def get_program_list(year: str = "2022", yesterday=False, today=False):
 
 
 def change_format_scrape_data(data):
+    """
+    スクレイピングした生データを、json形式に変換して返す
+    """
     data_dict = {}
     for key, value in data.items():
         data_dict[key] = [d.text for d in value]
@@ -49,12 +57,18 @@ def change_format_scrape_data(data):
 
 
 def get_scrape_results(program_list: list):
+    """
+    スクレイピングしたレース結果を返す
+    """
     race_results = Results.scrape(program_list)
     results = change_format_scrape_data(race_results)
     return results
 
 
 def get_scrape_infos(program_list: list):
+    """
+    スクレイピングしたレース情報を返す
+    """
     race_infos = Infos.scrape(program_list)
     infos = change_format_scrape_data(race_infos)
     return infos
@@ -92,6 +106,125 @@ def save_scrape_data(results: dict = {}, infos: dict = {}, year: str = ""):
 
     hdb = handle_db.HandleDB()
     hdb.insert_scrape_data(r.results_p, i.infos_p, rt.returns_p)
+
+
+def get_results_merge_infos():
+    """
+    resultsとinfosを結合したデータを返す
+    """
+    hdb = handle_db.HandleDB()
+    results_merge_infos = hdb.get_results_all()
+    return results_merge_infos
+
+
+def process_categorical(results, rank, class_int=False, number_del=False):
+    """
+    カテゴリ変数化、モデル作成前処理を行なったデータを返す
+    """
+    df = results.copy()
+    df["rank"] = df["position"].map(lambda x: 1 if x <= rank else 0)
+    df["boat_number"] = df["boat_number"].astype("category")
+    df["racer_number"] = df["racer_number"].astype("category")
+
+    if number_del:
+        df.drop("racer_number", axis=1, inplace=True)
+    if not class_int:
+        df = pd.get_dummies(df, columns=["class"])
+    else:
+        class_mapping = {'B2': 1, 'B1': 2, 'A2': 3, 'A1': 4}
+        df["class"] = df["class"].map(class_mapping)
+    df.drop("position", axis=1, inplace=True)
+    return df
+
+
+def split_data(df, test_size=0.3):
+    """
+    データを分割する
+    """
+    sorted_id_list = df.sort_values("date").index.unique()
+    train_id_list = sorted_id_list[: round(
+        len(sorted_id_list) * (1 - test_size))]
+    test_id_list = sorted_id_list[round(
+        len(sorted_id_list) * (1 - test_size)):]
+    train = df.loc[train_id_list]
+    test = df.loc[test_id_list]
+    return train, test
+
+
+def get_train_valid(results_c):
+    """
+    訓練データと検証データを返す
+    """
+    train, test = split_data(results_c)
+    train, valid = split_data(train)
+    X_train = train.drop(["rank", "date"], axis=1)
+    y_train = train["rank"]
+    X_valid = valid.drop(["rank", "date"], axis=1)
+    y_valid = valid["rank"]
+    return X_train, y_train, X_valid, y_valid
+
+
+def get_lgb_train_valid(results):
+    """
+    optuna用にデータを用意
+    """
+    X_train, y_train, X_valid, y_valid = get_train_valid(results)
+
+    lgb_train = lgb_o.Dataset(X_train.values, y_train.values)
+    lgb_valid = lgb_o.Dataset(X_valid.values, y_valid.values)
+
+    params = {
+        "objective": "binary",
+        "random_state": 100,
+        "metric": "auc",
+    }
+    return lgb_train, lgb_valid, params
+
+
+def get_train_test(results_c):
+    """
+    訓練データとテストデータを返す
+    """
+    train, test = split_data(results_c)
+    X_train = train.drop(["rank", "date"], axis=1)
+    y_train = train["rank"]
+    X_test = test.drop(["rank", "date"], axis=1)
+    y_test = test["rank"]
+    return X_train, y_train, X_test, y_test
+
+
+def get_optuna_params(params, lgb_train, lgb_valid, seed):
+    """
+    パラメータチューニングを行なった結果を返す
+    """
+    lgb_clf_o = lgb_o.train(
+        params, lgb_train,
+        valid_sets=(lgb_train, lgb_valid),
+        verbose_eval=-1,
+        early_stopping_rounds=10,
+        optuna_seed=seed
+    )
+    params_o = lgb_clf_o.params
+    del params_o["early_stopping_round"]
+    return params_o
+
+
+def get_lgb_clf(params_o, X_train, y_train):
+    """
+    モデルを作成し、返す
+    """
+    lgb_clf = lgb.LGBMClassifier(**params_o)
+    lgb_clf.fit(X_train.values, y_train.values)
+    return lgb_clf
+
+
+def save_model(model):
+    """
+    モデルを保存する
+    """
+    model_file_name = "params/model.pickle"
+    with open(model_file_name, mode="wb") as f:
+        pickle.dump(model, f)
 
 
 def get_latest_date(results_all):
@@ -179,29 +312,6 @@ def get_between_program(latest_date):
 #     results_all.to_pickle("data/results_all.pickle")
 #     results_r.to_pickle("data/results_r.pickle")
 #     returns.to_pickle("data/returns.pickle")
-
-
-def process_categorical(results_r, rank, class_int=False, number_del=False, normalize=False):
-    df = results_r.copy()
-    df["rank"] = df["着順"].map(lambda x: 1 if x <= rank else 0)
-    df["艇番"] = df["艇番"].astype("category")
-    df["選手番号"] = df["選手番号"].astype("category")
-    if number_del:
-        df.drop("選手番号", axis=1, inplace=True)
-    df.drop("着順", axis=1, inplace=True)
-    if not class_int:
-        df = pd.get_dummies(df, columns=["class"])
-    else:
-        class_mapping = {'B2': 1, 'B1': 2, 'A2': 3, 'A1': 4}
-        df["class"] = df["class"].map(class_mapping)
-    if normalize:
-        def standard_scaler(x): return (x - x.mean()) / x.std(ddof=0)
-        for column in tqdm(["全国勝率", "全国2率", "当地勝率", "当地2率", "class",
-                            "着順_5R", "着順_1_5R", "着順_2_5R", "着順_3_5R", "着順_4_5R", "着順_5_5R", "着順_6_5R",
-                            "着順_9R", "着順_1_9R", "着順_2_9R", "着順_3_9R", "着順_4_9R", "着順_5_9R", "着順_6_9R",
-                            "着順_allR", "着順_1_allR", "着順_2_allR", "着順_3_allR", "着順_4_allR", "着順_5_allR", "着順_6_allR"]):
-            df[column] = df[column].groupby(level=0).transform(standard_scaler)
-    return df
 
 
 def process_categorical_predict(shusso_df):
