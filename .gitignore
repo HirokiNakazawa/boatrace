@@ -1,0 +1,12 @@
+__*
+.ipynb*
+.DS*
+.env
+
+old
+logs
+params
+
+race_*.json
+*.ipynb
+*.pickle

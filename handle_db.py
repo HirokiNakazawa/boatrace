@@ -2,13 +2,17 @@
 データベース関連処理
 """
 
-import logging
-import argparse
-import glob
-import mysql.connector
-import pymysql
-import pandas as pd
 import sqlalchemy as sa
+import pandas as pd
+import os
+import pymysql
+import mysql.connector
+import glob
+import argparse
+import logging
+from dotenv import load_dotenv
+load_dotenv()
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +23,19 @@ logging.basicConfig(
     format=fmt,
 )
 
-db_user = "boatrace"
-db_pass = "boatrace"
-db_host = "127.0.0.1"
-db_database = "boatrace_db"
+db_driver = os.getenv("DB_DRIVER")
+db_user = os.getenv("DB_USER")
+db_pass = os.getenv("DB_PASS")
+db_host = os.getenv("DB_HOST")
+db_name = os.getenv("DB_NAME")
 
 engine = sa.create_engine(
     sa.engine.url.URL.create(
-        drivername="mysql+pymysql",
+        drivername=db_driver,
         username=db_user,
         password=db_pass,
         host=db_host,
-        database=db_database,
+        database=db_name,
     )
 )
 
