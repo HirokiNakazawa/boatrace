@@ -85,4 +85,3 @@ class Return:
                     break
 
         self.returns = pd.concat(return_list)
-        self.returns.set_index("race_id", inplace=True)

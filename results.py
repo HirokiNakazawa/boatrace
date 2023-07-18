@@ -47,29 +47,28 @@ class Results:
                     "/", "") + (re.search(r"\d+R", datas[0]).group()[:-1]).zfill(2)
                 data_dict = {}
                 data_dict["race_id"] = []
-                data_dict["着順"] = []
-                data_dict["艇番"] = []
-                data_dict["選手番号"] = []
+                data_dict["position"] = []
+                data_dict["boat_number"] = []
+                data_dict["racer_number"] = []
                 data_dict["start_time"] = []
                 data_dict["race_time"] = []
                 for data in datas:
                     data_p = re.findall(r"\S+", data)
                     if re.match("^\s+0[1-6]", data):
                         data_dict["race_id"].append(race_id)
-                        data_dict["着順"].append(int(data_p[0][-1]))
-                        data_dict["艇番"].append(data_p[1])
-                        data_dict["選手番号"].append(data_p[2])
+                        data_dict["position"].append(int(data_p[0][-1]))
+                        data_dict["boat_number"].append(data_p[1])
+                        data_dict["racer_number"].append(data_p[2])
                         data_dict["start_time"].append(data_p[8])
                         data_dict["race_time"].append(data_p[9])
 
-                if len(data_dict["着順"]) == 6:
+                if len(data_dict["position"]) == 6:
                     df = pd.DataFrame(data_dict)
                     results_list.append(df.copy())
                 else:
                     continue
 
         self.results_p = pd.concat(results_list)
-        self.results_p.set_index("race_id", inplace=True)
 
     def merge_infos(self, results, infos):
         results_merge_infos = pd.merge(

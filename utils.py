@@ -15,6 +15,7 @@ from results import Results
 from infos import Infos
 from returns import Return
 from racer import RacerResults
+from handle_db import HandleDB
 
 
 def get_program_list(year: str = "2022", today=False):
@@ -36,14 +37,23 @@ def get_program_list(year: str = "2022", today=False):
     return program_list
 
 
+def change_format_scrape_data(data):
+    data_dict = {}
+    for key, value in data.items():
+        data_dict[key] = [d.text for d in value]
+    return data_dict
+
+
 def get_scrape_results(program_list: list):
     race_results = Results.scrape(program_list)
-    return race_results
+    results = change_format_scrape_data(race_results)
+    return results
 
 
 def get_scrape_infos(program_list: list):
     race_infos = Infos.scrape(program_list)
-    return race_infos
+    infos = change_format_scrape_data(race_infos)
+    return infos
 
 
 def change_format_results(race_results):

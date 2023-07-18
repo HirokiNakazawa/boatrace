@@ -16,8 +16,8 @@ class BoatRace:
             # 年単位でスクレイピングする
             year = self.args.scrape
             program_list = utils.get_program_list(year)
-            race_results = utils.get_scrape_results(program_list)
-            race_infos = utils.get_scrape_infos(program_list)
+            results = utils.get_scrape_results(program_list)
+            infos = utils.get_scrape_infos(program_list)
 
             # 整形した後、データを保存
             utils.save_scrape_data(race_results, race_infos, year)
