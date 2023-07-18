@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 fmt = "%(asctime)s %(levelname)s %(name)s :%(message)s"
 logging.basicConfig(
     filename="./logs/handle_db.log",
-    level=logging.DEBUG,
+    level=logging.INFO,
     format=fmt,
 )
 
@@ -42,7 +42,7 @@ class Log:
 
 
 class HandleDB:
-    def __init__(self, args):
+    def __init__(self, args=None):
         self.args = args
 
     def connect_db(self):
@@ -70,12 +70,20 @@ class HandleDB:
                 df.to_sql(dir, con=engine, if_exists="append", index=False)
         Log.info("過去データをデータベースに格納完了")
 
+    def insert_scrape_data(self, results, infos, returns):
+        Log.info("スクレイピングしたデータをデータベースに格納開始")
+        results.to_sql("results", con=engine, if_exists="append", index=False)
+        infos.to_sql("infos", con=engine, if_exists="append", index=False)
+        returns.to_sql("returns", con=engine, if_exists="append", index=False)
+        Log.info("スクレイピングしたデータをデータベースに格納完了")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-p", "--past", help="過去データをデータベースに格納", action="store_true")
     args = parser.parse_args()
+    print(args)
 
     handle_db = HandleDB(args)
     handle_db.main()

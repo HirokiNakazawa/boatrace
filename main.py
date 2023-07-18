@@ -19,8 +19,8 @@ class BoatRace:
             results = utils.get_scrape_results(program_list)
             infos = utils.get_scrape_infos(program_list)
 
-            # 整形した後、データを保存
-            utils.save_scrape_data(race_results, race_infos, year)
+            # データを保存
+            utils.save_scrape_data(results, infos, year)
 
         elif self.args.update:
             # 当日までのデータをスクレイピングし、データを更新する
@@ -68,8 +68,13 @@ class BoatRace:
             pass
         elif self.args.model_update:
             pass
+        elif self.args.debug:
+            program_list = utils.get_program_list(yesterday=True)
+            results = utils.get_scrape_results(program_list)
+            infos = utils.get_scrape_infos(program_list)
+            utils.save_scrape_data(results, infos)
         else:
-            print("引数が指定されていません")
+            print(self.args)
 
 
 if __name__ == "__main__":
@@ -79,9 +84,11 @@ if __name__ == "__main__":
         "-u", "--update", help="レース結果をスクレイピングし、データをアップデート", action="store_true")
     parser.add_argument("-p", "--predict", help="当日の予想",
                         action="store_true")
-    parser.add_argument("-c", "--check", help="現状のモデルの回収率を計算")
+    parser.add_argument(
+        "-c", "--check", help="現状のモデルの回収率を計算", action="store_true")
     parser.add_argument("-m", "--model_update", help="モデルをアップデート",
                         action="store_true")
+    parser.add_argument("-d", "--debug", help="デバッグ用", action="store_true")
     args = parser.parse_args()
 
     boatrace = BoatRace(args)

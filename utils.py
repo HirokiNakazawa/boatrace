@@ -13,18 +13,22 @@ import pandas.tseries.offsets as offsets
 
 from results import Results
 from infos import Infos
-from returns import Return
+from returns import Returns
 from racer import RacerResults
-from handle_db import HandleDB
+import handle_db
 
 
-def get_program_list(year: str = "2022", today=False):
+def get_program_list(year: str = "2022", yesterday=False, today=False):
     program_list = []
-    if today:
-        dt_now = datetime.now()
-        year = dt_now.year
-        month = dt_now.month
-        day = dt_now.day
+
+    if yesterday or today:
+        if yesterday:
+            dt = datetime.now() - timedelta(1)
+        if today:
+            dt = datetime.now()
+        year = dt.year
+        month = dt.month
+        day = dt.day
         for place in range(1, 25, 1):
             program_list.append(
                 "%s%s/%s/%s" % (year, str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
@@ -56,37 +60,38 @@ def get_scrape_infos(program_list: list):
     return infos
 
 
-def change_format_results(race_results):
-    results_dict = {}
-    for key, value in race_results.items():
-        results_dict[key] = [d.text for d in value]
-    return results_dict
+def save_scrape_data(results: dict = {}, infos: dict = {}, year: str = ""):
+    """
+    スクレイピングしたデータを保存する
+    """
+    r = Results(results)
+    r.preprocessing()
 
+    i = Infos(infos)
+    i.preprocessing()
 
-def change_format_infos(race_infos):
-    infos_dict = {}
-    for key, value in race_infos.items():
-        infos_dict[key] = [d.text for d in value]
-    return infos_dict
-
-
-def save_scrape_data(race_results, race_infos, year):
-    results_dict = change_format_results(race_results)
-    infos_dict = change_format_infos(race_infos)
-
-    rt = Return(results_dict)
+    rt = Returns(results)
     rt.preprocessing()
-    returns = rt.returns
 
-    results_file_name = "src/results/race_results_%d.json" % year
-    infos_file_name = "src/infos/race_infos_%d.json" % year
-    returns_file_name = "dev/returns_%d.pickle" % year
+    if year:
+        results_json_name = "src/results/race_results_%d.json" % year
+        infos_json_name = "src/infos/race_infos_%d.json" % year
 
-    with open(results_file_name, "w") as f:
-        json.dump(results_dict, f, ensure_ascii=False)
-    with open(infos_file_name, "w") as f:
-        json.dump(infos_dict, f, ensure_ascii=False)
-    returns.to_pickle(returns_file_name)
+        results_file_name = "res/results/results_%d.pickle" % year
+        infos_file_name = "res/infos/infos_%d.pickle" % year
+        returns_file_name = "res/returns/returns_%d.pickle" % year
+
+        with open(results_json_name, "w") as f:
+            json.dump(results, f, ensure_ascii=False)
+        with open(infos_json_name, "w") as f:
+            json.dump(infos, f, ensure_ascii=False)
+
+        r.results_p.to_pickle(results_file_name)
+        i.infos_p.to_pickle(infos_file_name)
+        rt.returns_p.to_pickle(returns_file_name)
+
+    hdb = handle_db.HandleDB()
+    hdb.insert_scrape_data(r.results_p, i.infos_p, rt.returns_p)
 
 
 def get_latest_date(results_all):
@@ -143,37 +148,37 @@ def get_between_program(latest_date):
     return program_list
 
 
-def update_data(results_all_latest, results_r_latest, returns_latest, race_results, race_infos, between=False):
-    results = change_format_results(race_results)
-    infos = change_format_infos(race_infos)
+# def update_data(results_all_latest, results_r_latest, returns_latest, race_results, race_infos, between=False):
+#     results = change_format_results(race_results)
+#     infos = change_format_infos(race_infos)
 
-    r = Results(results)
-    i = Infos(infos)
-    r.preprocessing()
-    i.preprocessing()
+#     r = Result(results)
+#     i = Infos(infos)
+#     r.preprocessing()
+#     i.preprocessing()
 
-    results_all_new = r.merge_infos(r.results_p, i.infos_p)
+#     results_all_new = r.merge_infos(r.results_p, i.infos_p)
 
-    rr = RacerResults()
-    n_samples_list = [5, 9, "all"]
-    if between:
-        results_r_new = rr.update_between_data(
-            results_r_latest, results_all_new, n_samples_list)
-    else:
-        results_r_new = rr.update_data(
-            results_all_latest, results_all_new, n_samples_list)
+#     rr = RacerResults()
+#     n_samples_list = [5, 9, "all"]
+#     if between:
+#         results_r_new = rr.update_between_data(
+#             results_r_latest, results_all_new, n_samples_list)
+#     else:
+#         results_r_new = rr.update_data(
+#             results_all_latest, results_all_new, n_samples_list)
 
-    rt = Return(results)
-    rt.preprocessing()
-    returns_new = rt.returns
+#     rt = Return(results)
+#     rt.preprocessing()
+#     returns_new = rt.returns
 
-    results_all = pd.concat([results_all_latest, results_all_new])
-    results_r = pd.concat([results_r_latest, results_r_new])
-    returns = pd.concat([returns_latest, returns_new])
+#     results_all = pd.concat([results_all_latest, results_all_new])
+#     results_r = pd.concat([results_r_latest, results_r_new])
+#     returns = pd.concat([returns_latest, returns_new])
 
-    results_all.to_pickle("data/results_all.pickle")
-    results_r.to_pickle("data/results_r.pickle")
-    returns.to_pickle("data/returns.pickle")
+#     results_all.to_pickle("data/results_all.pickle")
+#     results_r.to_pickle("data/results_r.pickle")
+#     returns.to_pickle("data/returns.pickle")
 
 
 def process_categorical(results_r, rank, class_int=False, number_del=False, normalize=False):
@@ -252,34 +257,34 @@ def preprocessing_3(model, X, threshold=0.5):
     return df_3
 
 
-def predict(race_infos, results_all):
-    place_dict = {"01": "桐生", "02": "戸田", "03": "江戸川", "04": "平和島", "05": "多摩川", "06": "浜名湖", "07": "蒲郡", "08": "常滑", "09": "津", "10": "三国", "11": "びわこ",
-                  "12": "住之江", "13": "尼崎", "14": "鳴門", "15": "丸亀", "16": "児島", "17": "宮島", "18": "徳山", "19": "下関", "20": "若松", "21": "芦屋", "22": "福岡", "23": "唐津", "24": "大村"}
+# def predict(race_infos, results_all):
+#     place_dict = {"01": "桐生", "02": "戸田", "03": "江戸川", "04": "平和島", "05": "多摩川", "06": "浜名湖", "07": "蒲郡", "08": "常滑", "09": "津", "10": "三国", "11": "びわこ",
+#                   "12": "住之江", "13": "尼崎", "14": "鳴門", "15": "丸亀", "16": "児島", "17": "宮島", "18": "徳山", "19": "下関", "20": "若松", "21": "芦屋", "22": "福岡", "23": "唐津", "24": "大村"}
 
-    infos_p = change_format_infos(race_infos)
-    i = Infos(infos_p)
-    i.preprocessing()
-    shusso_df = i.infos_p
+#     infos_p = change_format_infos(race_infos)
+#     i = Infos(infos_p)
+#     i.preprocessing()
+#     shusso_df = i.infos_p
 
-    rr = RacerResults()
-    n_samples_list = [5, 9, "all"]
-    for n_samples in n_samples_list:
-        shusso_df = rr.predict_merge_all(shusso_df, results_all, n_samples)
+#     rr = RacerResults()
+#     n_samples_list = [5, 9, "all"]
+#     for n_samples in n_samples_list:
+#         shusso_df = rr.predict_merge_all(shusso_df, results_all, n_samples)
 
-    target_df = process_categorical_predict(shusso_df)
+#     target_df = process_categorical_predict(shusso_df)
 
-    with open("params/model_3_100_cinn.pickle", mode="rb") as f:
-        lgb_clf = pickle.load(f)
+#     with open("params/model_3_100_cinn.pickle", mode="rb") as f:
+#         lgb_clf = pickle.load(f)
 
-    df_3t = preprocessing_3(lgb_clf, target_df, threshold=0.665)
-    race_id_list = df_3t.index.unique()
-    predict_list = []
-    for race_id in race_id_list:
-        place_id = race_id[6:8]
-        race = race_id[-2:]
-        place = place_dict[place_id]
-        predict = ("%s%dレース" % (place, int(race)))
-        predict_list.append(predict)
+#     df_3t = preprocessing_3(lgb_clf, target_df, threshold=0.665)
+#     race_id_list = df_3t.index.unique()
+#     predict_list = []
+#     for race_id in race_id_list:
+#         place_id = race_id[6:8]
+#         race = race_id[-2:]
+#         place = place_dict[place_id]
+#         predict = ("%s%dレース" % (place, int(race)))
+#         predict_list.append(predict)
 
-    df_3t["predict_race"] = predict_list
-    print(df_3t)
+#     df_3t["predict_race"] = predict_list
+#     print(df_3t)

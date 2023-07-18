@@ -3,7 +3,7 @@ import pandas as pd
 import re
 
 
-class Return:
+class Returns:
     def __init__(self, race_results):
         self.results = race_results
 
@@ -84,4 +84,4 @@ class Return:
                 except:
                     break
 
-        self.returns = pd.concat(return_list)
+        self.returns_p = pd.concat(return_list)
