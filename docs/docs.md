@@ -62,6 +62,8 @@
     - national_second_rate(float)
     - local_win_rate(float)
     - local_second_rate(float)
+    - motor_second_rate(float)
+    - boat_second_rate(float)
     - date(datetime)
   - returns
     - race_id(char(20))

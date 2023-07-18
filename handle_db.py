@@ -1,7 +1,14 @@
-import argparse
-import pandas as pd
-import mysql.connector
+"""
+データベース関連処理
+"""
+
 import logging
+import argparse
+import glob
+import mysql.connector
+import pymysql
+import pandas as pd
+import sqlalchemy as sa
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +17,21 @@ logging.basicConfig(
     filename="./logs/handle_db.log",
     level=logging.DEBUG,
     format=fmt,
+)
+
+db_user = "boatrace"
+db_pass = "boatrace"
+db_host = "127.0.0.1"
+db_database = "boatrace_db"
+
+engine = sa.create_engine(
+    sa.engine.url.URL.create(
+        drivername="mysql+pymysql",
+        username=db_user,
+        password=db_pass,
+        host=db_host,
+        database=db_database,
+    )
 )
 
 
@@ -25,7 +47,7 @@ class HandleDB:
 
     def connect_db(self):
         self.conn = mysql.connector.connect(
-            host='127.0.0.1', user='root', password='')
+            host=db_host, user=db_user, password=db_pass)
         Log.info("mysql connected")
 
     def close_db(self):
@@ -33,15 +55,20 @@ class HandleDB:
         Log.info("mysql close connected")
 
     def main(self):
-        self.connect_db()
         if self.args.past:
             Log.info("過去データをデータベースに格納開始")
             self.insert_past_data()
-            pass
-        self.close_db()
 
     def insert_past_data(self):
-        pass
+        dirs = ["infos", "results", "returns"]
+        for dir in dirs:
+            path = "res/%s/*.pickle" % dir
+            files = glob.glob(path)
+            for file in files:
+                Log.info(file)
+                df = pd.read_pickle(file)
+                df.to_sql(dir, con=engine, if_exists="append", index=False)
+        Log.info("過去データをデータベースに格納完了")
 
 
 if __name__ == "__main__":

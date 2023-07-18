@@ -24,6 +24,8 @@ CREATE TABLE infos(
     national_second_rate float NOT NULL,
     local_win_rate float NOT NULL,
     local_second_rate float NOT NULL,
+    motor_second_rate float NOT NULL,
+    boat_second_rate float NOT NULL,
     date datetime NOT NULL
 );
 
