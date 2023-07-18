@@ -3,18 +3,20 @@ import pandas as pd
 import mysql.connector
 import logging
 
+logger = logging.getLogger(__name__)
+
+fmt = "%(asctime)s %(levelname)s %(name)s :%(message)s"
 logging.basicConfig(
     filename="./logs/handle_db.log",
     level=logging.DEBUG,
-    format="[%(levelname)s] %(message)s",
-    datefmt="%Y/%m/%d"
+    format=fmt,
 )
 
 
 class Log:
     @staticmethod
     def info(str):
-        logging.info(str)
+        logger.info(str)
 
 
 class HandleDB:
