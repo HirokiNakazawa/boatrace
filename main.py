@@ -48,6 +48,9 @@ class BoatRace:
             # モデルを作成する
             results_all = utils.get_results_merge_infos()
 
+            # race_idをindexに変換
+            results_all.set_index("race_id", inplace=True)
+
             # カテゴリ変数化、前処理
             results_c = utils.process_categorical(
                 results_all,
@@ -70,11 +73,21 @@ class BoatRace:
             # モデルを評価するためのreturnsを取得
             returns = utils.get_returns()
 
-            # モデルを評価
-            gain_list = utils
+            # race_idをindexに変換
+            returns.set_index("race_id", inplace=True)
 
-            # モデルを保存
-            # utils.save_model(lgb_clf)
+            # モデルを評価
+            gain_dict = utils.get_gain_dict(lgb_clf, returns, X_test)
+
+            # 各掛け方の最大回収率を確認
+            for k, v in gain_dict.items():
+                print(k)
+                print(v[v["n_bets"] > 200].sort_values(
+                    "return_rate", ascending=False).head(3))
+
+            # モデルとパラメータを保存
+            utils.save_model(gain_dict, lgb_clf, rank,
+                             class_int, number_del, seed)
 
         elif self.args.update:
             # 当日までのデータをスクレイピングし、データを更新する
@@ -123,12 +136,7 @@ class BoatRace:
         elif self.args.model_update:
             pass
         elif self.args.debug:
-            # program_list = utils.get_program_list(yesterday=True)
-            # results = utils.get_scrape_results(program_list)
-            # infos = utils.get_scrape_infos(program_list)
-            # utils.save_scrape_data(results, infos)
-            returns = utils.get_returns()
-            print(returns.head(5))
+            pass
         else:
             print(self.args)
 

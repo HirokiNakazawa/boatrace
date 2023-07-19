@@ -25,7 +25,7 @@ class ModelEvaluator:
         return proba
 
     def rank_join(self, X):
-        df = X.copy()[["艇番"]]
+        df = X.copy()[["boat_number"]]
         df["point"] = self.predict_proba(X)
         df["rank"] = df["point"].groupby(level=0).rank(ascending=False)
         return df
@@ -48,10 +48,10 @@ class ModelEvaluator:
 
     def preprocessing_2(self, pred_table):
         df = pred_table
-        df_2_1 = pd.DataFrame(df[df["pred_1"] == 1]["艇番"]).rename(
-            columns={"艇番": "pred_1"})
-        df_2_2 = pd.DataFrame(df[df["pred_2"] == 1]["艇番"]).rename(
-            columns={"艇番": "pred_2"})
+        df_2_1 = pd.DataFrame(df[df["pred_1"] == 1]["boat_number"]).rename(
+            columns={"boat_number": "pred_1"})
+        df_2_2 = pd.DataFrame(df[df["pred_2"] == 1]["boat_number"]).rename(
+            columns={"boat_number": "pred_2"})
         df_2 = pd.merge(df_2_1, df_2_2, left_index=True,
                         right_index=True, how="right")
         df_2["pred_1"] = df_2["pred_1"].astype(int)
@@ -60,12 +60,12 @@ class ModelEvaluator:
 
     def preprocessing_3(self, pred_table):
         df = pred_table
-        df_3_1 = pd.DataFrame(df[df["pred_1"] == 1]["艇番"]).rename(
-            columns={"艇番": "pred_1"})
-        df_3_2 = pd.DataFrame(df[df["pred_2"] == 1]["艇番"]).rename(
-            columns={"艇番": "pred_2"})
-        df_3_3 = pd.DataFrame(df[df["pred_3"] == 1]["艇番"]).rename(
-            columns={"艇番": "pred_3"})
+        df_3_1 = pd.DataFrame(df[df["pred_1"] == 1]["boat_number"]).rename(
+            columns={"boat_number": "pred_1"})
+        df_3_2 = pd.DataFrame(df[df["pred_2"] == 1]["boat_number"]).rename(
+            columns={"boat_number": "pred_2"})
+        df_3_3 = pd.DataFrame(df[df["pred_3"] == 1]["boat_number"]).rename(
+            columns={"boat_number": "pred_3"})
         df_3_12 = pd.merge(df_3_1, df_3_2, left_index=True,
                            right_index=True, how="right")
         df_3 = pd.merge(df_3_12, df_3_3, left_index=True,
@@ -79,10 +79,10 @@ class ModelEvaluator:
         pred_table = self.pred_table(threshold)
         df = pred_table.copy()
         df = df[df["pred_0"] == 1]
-        df["艇番"] = df["艇番"].astype(int)
+        df["boat_number"] = df["boat_number"].astype(int)
         n_bets = len(df)
         df = pd.merge(df, self.tansho, how="left", on="race_id")
-        money = sum(df[df["艇番"] == df["win_t"]]["return_t"])
+        money = sum(df[df["boat_number"] == df["win_t"]]["return_t"])
         return_rate = (money / (n_bets * 100)) * 100
         return n_bets, return_rate
 
@@ -90,11 +90,11 @@ class ModelEvaluator:
         pred_table = self.pred_table(threshold)
         df = pred_table.copy()
         df = df[df["pred_0"] == 1]
-        df["艇番"] = df["艇番"].astype(int)
+        df["boat_number"] = df["boat_number"].astype(int)
         n_bets = len(df)
         df = pd.merge(df, self.fukusho, how="left", on="race_id")
-        money = sum(df[df["艇番"] == df["win_f1"]]["return_f1"]) +\
-            sum(df[df["艇番"] == df["win_f2"]]["return_f2"])
+        money = sum(df[df["boat_number"] == df["win_f1"]]["return_f1"]) +\
+            sum(df[df["boat_number"] == df["win_f2"]]["return_f2"])
         return_rate = (money / (n_bets * 100)) * 100
         return n_bets, return_rate
 

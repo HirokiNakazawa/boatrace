@@ -228,20 +228,68 @@ def get_lgb_clf(params_o, X_train, y_train):
     return lgb_clf
 
 
-def save_model(model):
+def gain(return_func, n_samples=100):
     """
-    モデルを保存する
+    閾値ごとの回収率を算出する
     """
-    model_file_name = "params/model.pickle"
-    with open(model_file_name, mode="wb") as f:
-        pickle.dump(model, f)
+    gain = {}
+    try:
+        for i in tqdm(range(n_samples)):
+            threshold = 0.5 + (((1 - 0.5) / n_samples) * i)
+            n_bets, return_rate = return_func(threshold)
+            gain[threshold] = {"n_bets": n_bets,
+                               "return_rate": return_rate}
+        return pd.DataFrame(gain).T
+    except:
+        return pd.DataFrame(gain).T
 
 
-def get_gain_list(lgb_clf, returns, X_test):
+def get_gain_dict(lgb_clf, returns, X_test):
     """
-    モデルを評価し、gainリストを返す
+    モデルを評価し、gainの辞書を返す
     """
     me = ModelEvaluator(lgb_clf, returns, X_test)
+    gain_t = gain(me.tansho_return)
+    gain_f = gain(me.fukusho_return)
+    gain_2t = gain(me.nirentan_return)
+    gain_2f = gain(me.nirenpuku_return)
+    gain_3t = gain(me.sanrentan_return)
+    gain_3f = gain(me.sanrenpuku_return)
+    gain_2t_n = gain(me.nirentan_nagashi)
+    gain_2t_b = gain(me.nirentan_box)
+    gain_3t_2 = gain(me.sanrentan_nagashi_2)
+    gain_3t_3 = gain(me.sanrentan_nagashi_3)
+    gain_3t_b = gain(me.sanrentan_box)
+    gain_dict = {"gain_t": gain_t, "gain_f": gain_f, "gain_2t": gain_2t, "gain_2f": gain_2f, "gain_3t": gain_3t, "gain_3f": gain_3f,
+                 "gain_2t_n": gain_2t_n, "gain_2t_b": gain_2t_b, "gain_3t_2": gain_3t_2, "gain_3t_3": gain_3t_3, "gain_3t_b": gain_3t_b}
+    return gain_dict
+
+
+def save_model(gain_dict, model, rank, class_int, number_del, seed):
+    """
+    モデルとパラメータを保存する
+    """
+    params = {}
+    str_ci = ""
+    str_nd = ""
+
+    for k, v in gain_dict.items():
+        return_max = v[v["n_bets"] > 200].sort_values(
+            "return_rate", ascending=False).head(1)
+        if return_max.iloc[0]["return_rate"] > 110:
+            params[k] = return_max.index[0]
+
+    print(params)
+
+    # if class_int:
+    #     str_ci = "_ci"
+    # if number_del:
+    #     str_nd = "_nd"
+
+    # model_file_name = "params/model_%d_%d%s%s.pickle" % (
+    #     rank, seed, str_ci, str_nd)
+    # with open(model_file_name, mode="wb") as f:
+    #     pickle.dump(model, f)
 
 
 def get_latest_date(results_all):
