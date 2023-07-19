@@ -67,8 +67,14 @@ class BoatRace:
             X_train, y_train, X_test, y_test = utils.get_train_test(results_c)
             lgb_clf = utils.get_lgb_clf(params_o, X_train, y_train)
 
+            # モデルを評価するためのreturnsを取得
+            returns = utils.get_returns()
+
+            # モデルを評価
+            gain_list = utils
+
             # モデルを保存
-            utils.save_model(lgb_clf)
+            # utils.save_model(lgb_clf)
 
         elif self.args.update:
             # 当日までのデータをスクレイピングし、データを更新する
@@ -117,10 +123,12 @@ class BoatRace:
         elif self.args.model_update:
             pass
         elif self.args.debug:
-            program_list = utils.get_program_list(yesterday=True)
-            results = utils.get_scrape_results(program_list)
-            infos = utils.get_scrape_infos(program_list)
-            utils.save_scrape_data(results, infos)
+            # program_list = utils.get_program_list(yesterday=True)
+            # results = utils.get_scrape_results(program_list)
+            # infos = utils.get_scrape_infos(program_list)
+            # utils.save_scrape_data(results, infos)
+            returns = utils.get_returns()
+            print(returns.head(5))
         else:
             print(self.args)
 

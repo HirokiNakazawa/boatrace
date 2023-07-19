@@ -108,6 +108,20 @@ class HandleDB:
         )
         return df
 
+    def get_returns(self):
+        Log.info("returnsをデータフレーム形式で返す")
+        sql = """
+            SELECT
+                *
+            FROM
+                returns
+            """
+        df = pd.read_sql(
+            sql=sql,
+            con=engine
+        )
+        return df
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

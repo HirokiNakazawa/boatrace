@@ -17,6 +17,7 @@ from results import Results
 from infos import Infos
 from returns import Returns
 from racer import RacerResults
+from model import ModelEvaluator
 import handle_db
 
 
@@ -115,6 +116,15 @@ def get_results_merge_infos():
     hdb = handle_db.HandleDB()
     results_merge_infos = hdb.get_results_all()
     return results_merge_infos
+
+
+def get_returns():
+    """
+    returnsを返す
+    """
+    hdb = handle_db.HandleDB()
+    returns = hdb.get_returns()
+    return returns
 
 
 def process_categorical(results, rank, class_int=False, number_del=False):
@@ -225,6 +235,13 @@ def save_model(model):
     model_file_name = "params/model.pickle"
     with open(model_file_name, mode="wb") as f:
         pickle.dump(model, f)
+
+
+def get_gain_list(lgb_clf, returns, X_test):
+    """
+    モデルを評価し、gainリストを返す
+    """
+    me = ModelEvaluator(lgb_clf, returns, X_test)
 
 
 def get_latest_date(results_all):
