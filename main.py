@@ -18,8 +18,8 @@ logging.basicConfig(
 )
 
 rank = int(os.getenv("RANK"))
-class_int = os.getenv("CLASS_INT")
-number_del = os.getenv("NUMBER_DEL")
+class_int = os.getenv("CLASS_INT", "False") == "True"
+number_del = os.getenv("NUMBER_DEL", "False") == "True"
 seed = int(os.getenv("SEED"))
 
 
@@ -80,10 +80,10 @@ class BoatRace:
             gain_dict = utils.get_gain_dict(lgb_clf, returns, X_test)
 
             # 各掛け方の最大回収率を確認
-            for k, v in gain_dict.items():
-                print(k)
-                print(v[v["n_bets"] > 200].sort_values(
-                    "return_rate", ascending=False).head(3))
+            # for k, v in gain_dict.items():
+            #     print(k)
+            #     print(v[v["n_bets"] > 200].sort_values(
+            #         "return_rate", ascending=False).head(3))
 
             # モデルとパラメータを保存
             utils.save_model(gain_dict, lgb_clf, rank,
@@ -136,7 +136,9 @@ class BoatRace:
         elif self.args.model_update:
             pass
         elif self.args.debug:
-            pass
+            print(rank, class_int, number_del, seed)
+            print(type(class_int), type(number_del))
+            print(type(True))
         else:
             print(self.args)
 

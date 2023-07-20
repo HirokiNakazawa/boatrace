@@ -276,20 +276,30 @@ def save_model(gain_dict, model, rank, class_int, number_del, seed):
     for k, v in gain_dict.items():
         return_max = v[v["n_bets"] > 200].sort_values(
             "return_rate", ascending=False).head(1)
-        if return_max.iloc[0]["return_rate"] > 110:
-            params[k] = return_max.index[0]
+        max_return_rate = return_max.iloc[0]["return_rate"]
+        if max_return_rate > 110:
+            params[k] = {}
+            params[k]["threshold"] = return_max.index[0]
+            params[k]["return_rate"] = max_return_rate
 
     print(params)
 
-    # if class_int:
-    #     str_ci = "_ci"
-    # if number_del:
-    #     str_nd = "_nd"
+    if params:
+        if class_int:
+            str_ci = "_ci"
+        if number_del:
+            str_nd = "_nd"
 
-    # model_file_name = "params/model_%d_%d%s%s.pickle" % (
-    #     rank, seed, str_ci, str_nd)
-    # with open(model_file_name, mode="wb") as f:
-    #     pickle.dump(model, f)
+        file_name = "params/model_%d_%d%s%s" % (rank, seed, str_ci, str_nd)
+        print(file_name)
+
+        model_file_name = file_name + ".pickle"
+        with open(model_file_name, mode="wb") as f:
+            pickle.dump(model, f)
+
+        json_file_name = file_name + ".json"
+        with open(json_file_name, "w") as f:
+            json.dump(params, f, ensure_ascii=False)
 
 
 def get_latest_date(results_all):
