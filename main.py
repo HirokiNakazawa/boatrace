@@ -79,12 +79,6 @@ class BoatRace:
             # モデルを評価
             gain_dict = utils.get_gain_dict(lgb_clf, returns, X_test)
 
-            # 各掛け方の最大回収率を確認
-            # for k, v in gain_dict.items():
-            #     print(k)
-            #     print(v[v["n_bets"] > 200].sort_values(
-            #         "return_rate", ascending=False).head(3))
-
             # モデルとパラメータを保存
             utils.save_model(gain_dict, lgb_clf, rank,
                              class_int, number_del, seed)
@@ -129,16 +123,19 @@ class BoatRace:
             race_infos = utils.get_scrape_infos(program_list)
 
             # 当日の予想を行う
-            utils.predict(race_infos, results_all)
+            utils.predict(race_infos)
 
         elif self.args.check:
             pass
         elif self.args.model_update:
             pass
         elif self.args.debug:
-            print(rank, class_int, number_del, seed)
-            print(type(class_int), type(number_del))
-            print(type(True))
+            program_list = utils.get_program_list_debug()
+            results = utils.get_scrape_results(program_list)
+            infos = utils.get_scrape_infos(program_list)
+
+            # データを保存
+            utils.save_scrape_data(results, infos)
         else:
             print(self.args)
 

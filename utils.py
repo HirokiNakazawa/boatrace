@@ -47,6 +47,16 @@ def get_program_list(year: str = "2022", yesterday=False, today=False):
     return program_list
 
 
+def get_program_list_debug():
+    program_list = []
+    for month in range(7, 8, 1):
+        for place in range(1, 25, 1):
+            for day in range(1, 32, 1):
+                program_list.append("2023%s/%s/%s" %
+                                    (str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
+    return program_list
+
+
 def change_format_scrape_data(data):
     """
     スクレイピングした生データを、json形式に変換して返す
@@ -389,11 +399,15 @@ def get_between_program(latest_date):
 #     returns.to_pickle("data/returns.pickle")
 
 
-def process_categorical_predict(shusso_df):
-    df = shusso_df.copy()
-    df["艇番"] = df["艇番"].astype("category")
-    df.drop(["date", "選手番号"], axis=1, inplace=True)
-    class_mapping = {"B2": 1, "B1": 2, "A2": 3, "A1": 4}
+def process_categorical_predict(df):
+    """
+    カテゴリ変数化、前処理を行なった予想に用いるデータを返す
+    """
+    df["boat_number"] = df["boat_number"].astype("category")
+    df["racer_number"] = df["racer_number"].astype("category")
+    df.index = df["race_id"]
+    df.drop(["race_id", "date"], axis=1, inplace=True)
+    class_mapping = {"B2": 1, "B2": 2, "A2": 3, "A1": 4}
     df["class"] = df["class"].map(class_mapping)
     return df
 
@@ -409,14 +423,14 @@ def predict_proba(model, X):
 
 
 def rank_join(model, X):
-    df = X.copy()[["艇番"]]
+    df = X.copy()[["boat_number"]]
     df["point"] = predict_proba(model, X)
     df["rank"] = df["point"].groupby(level=0).rank(ascending=False)
     return df
 
 
-def pred_table(model, X, threshold=0.5):
-    df = rank_join(model, X)
+def pred_table(model, target_df, threshold=0.5):
+    df = rank_join(model, target_df)
     df["pred_0"] = [0 if p < threshold else 1 for p in df["point"]]
     df["pred_1"] = ((df["pred_0"] == 1) & (df["rank"] == 1)) * 1
     df["pred_2"] = ((df["pred_0"] == 1) & (df["rank"] == 2)) * 1
@@ -424,14 +438,17 @@ def pred_table(model, X, threshold=0.5):
     return df
 
 
-def preprocessing_3(model, X, threshold=0.5):
-    df = pred_table(model, X, threshold)
-    df_3_1 = pd.DataFrame(df[df["pred_1"] == 1]["艇番"]
-                          ).rename(columns={"艇番": "pred_1"})
-    df_3_2 = pd.DataFrame(df[df["pred_2"] == 1]["艇番"]
-                          ).rename(columns={"艇番": "pred_2"})
-    df_3_3 = pd.DataFrame(df[df["pred_3"] == 1]["艇番"]
-                          ).rename(columns={"艇番": "pred_3"})
+def preprocessing_3(model, target_df, threshold):
+    """
+    3連単の予想データを返す
+    """
+    df = pred_table(model, target_df, threshold)
+    df_3_1 = pd.DataFrame(df[df["pred_1"] == 1]["boat_number"]).rename(
+        columns={"boat_number": "pred_1"})
+    df_3_2 = pd.DataFrame(df[df["pred_2"] == 1]["boat_number"]).rename(
+        columns={"boat_number": "pred_2"})
+    df_3_3 = pd.DataFrame(df[df["pred_3"] == 1]["boat_number"]).rename(
+        columns={"boat_number": "pred_3"})
     df_3_12 = pd.merge(df_3_1, df_3_2, left_index=True,
                        right_index=True, how="right")
     df_3 = pd.merge(df_3_12, df_3_3, left_index=True,
@@ -442,34 +459,31 @@ def preprocessing_3(model, X, threshold=0.5):
     return df_3
 
 
-# def predict(race_infos, results_all):
-#     place_dict = {"01": "桐生", "02": "戸田", "03": "江戸川", "04": "平和島", "05": "多摩川", "06": "浜名湖", "07": "蒲郡", "08": "常滑", "09": "津", "10": "三国", "11": "びわこ",
-#                   "12": "住之江", "13": "尼崎", "14": "鳴門", "15": "丸亀", "16": "児島", "17": "宮島", "18": "徳山", "19": "下関", "20": "若松", "21": "芦屋", "22": "福岡", "23": "唐津", "24": "大村"}
+def predict(race_infos):
+    """
+    予想する
+    """
+    i = Infos(race_infos)
+    i.preprocessing()
 
-#     infos_p = change_format_infos(race_infos)
-#     i = Infos(infos_p)
-#     i.preprocessing()
-#     shusso_df = i.infos_p
+    shusso_df = i.infos_p
+    target_df = process_categorical_predict(shusso_df)
 
-#     rr = RacerResults()
-#     n_samples_list = [5, 9, "all"]
-#     for n_samples in n_samples_list:
-#         shusso_df = rr.predict_merge_all(shusso_df, results_all, n_samples)
+    with open("params/model_2_10_naci.pickle", mode="rb") as f:
+        lgb_clf = pickle.load(f)
 
-#     target_df = process_categorical_predict(shusso_df)
+    df = preprocessing_3(lgb_clf, target_df, threshold=0.66)
 
-#     with open("params/model_3_100_cinn.pickle", mode="rb") as f:
-#         lgb_clf = pickle.load(f)
+    race_id_list = df.index.unique()
+    predict_list = []
+    place_dict = {"01": "桐生", "02": "戸田", "03": "江戸川", "04": "平和島", "05": "多摩川", "06": "浜名湖", "07": "蒲郡", "08": "常滑", "09": "津", "10": "三国", "11": "びわこ",
+                  "12": "住之江", "13": "尼崎", "14": "鳴門", "15": "丸亀", "16": "児島", "17": "宮島", "18": "徳山", "19": "下関", "20": "若松", "21": "芦屋", "22": "福岡", "23": "唐津", "24": "大村"}
 
-#     df_3t = preprocessing_3(lgb_clf, target_df, threshold=0.665)
-#     race_id_list = df_3t.index.unique()
-#     predict_list = []
-#     for race_id in race_id_list:
-#         place_id = race_id[6:8]
-#         race = race_id[-2:]
-#         place = place_dict[place_id]
-#         predict = ("%s%dレース" % (place, int(race)))
-#         predict_list.append(predict)
-
-#     df_3t["predict_race"] = predict_list
-#     print(df_3t)
+    for race_id in race_id_list:
+        place_id = race_id[6:8]
+        race = race_id[-2:]
+        place = place_dict[place_id]
+        predict = ("%s%dレース" % (place, int(race)))
+        predict_list.append(predict)
+    df["predict_race"] = predict_list
+    print(df)
