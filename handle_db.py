@@ -5,7 +5,6 @@
 import sqlalchemy as sa
 import pandas as pd
 import os
-import pymysql
 import mysql.connector
 import glob
 import argparse
@@ -51,11 +50,17 @@ class HandleDB:
         self.args = args
 
     def connect_db(self):
+        """
+        DB接続
+        """
         self.conn = mysql.connector.connect(
             host=db_host, user=db_user, password=db_pass)
         Log.info("mysql connected")
 
     def close_db(self):
+        """
+        DB接続を切断
+        """
         self.conn.close()
         Log.info("mysql close connected")
 
@@ -65,6 +70,9 @@ class HandleDB:
             self.insert_past_data()
 
     def insert_past_data(self):
+        """
+        過去データをデータベースに格納する
+        """
         dirs = ["infos", "results", "returns"]
         for dir in dirs:
             path = "res/%s/*.pickle" % dir
@@ -76,13 +84,59 @@ class HandleDB:
         Log.info("過去データをデータベースに格納完了")
 
     def insert_scrape_data(self, results, infos, returns):
+        """
+        スクレイピングしたデータをデータベースに格納する
+        """
         Log.info("スクレイピングしたデータをデータベースに格納開始")
         results.to_sql("results", con=engine, if_exists="append", index=False)
         infos.to_sql("infos", con=engine, if_exists="append", index=False)
         returns.to_sql("returns", con=engine, if_exists="append", index=False)
         Log.info("スクレイピングしたデータをデータベースに格納完了")
 
+    def get_results_latest(self):
+        """
+        DBのレース結果データの最新レースIDを返す
+        """
+        Log.info("resultsの最新レースIDを返す")
+        sql = """
+            SELECT
+                race_id
+            FROM
+                results
+            ORDER BY
+                race_id DESC
+            LIMIT 1;
+            """
+        df = pd.read_sql(
+            sql=sql,
+            con=engine
+        )
+        return df["race_id"].values[0]
+
+    def get_returns_latest(self):
+        """
+        DBの払い戻しデータの最新レースIDを返す
+        """
+        Log.info("returnsの最新レースIDを返す")
+        sql = """
+            SELECT
+                race_id
+            FROM
+                returns
+            ORDER BY
+                race_id DESC
+            LIMIT 1;
+            """
+        df = pd.read_sql(
+            sql=sql,
+            con=engine
+        )
+        return df["race_id"].values[0]
+
     def get_results_all(self):
+        """
+        DBのデータを使用して、results_allを返す
+        """
         Log.info("resultsとinfosを結合し、データフレーム形式で返す")
         sql = """
             SELECT

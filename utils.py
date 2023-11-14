@@ -6,6 +6,7 @@
 
 import json
 import pickle
+import logging
 from datetime import datetime, timedelta
 from tqdm import tqdm
 import pandas as pd
@@ -19,6 +20,21 @@ from returns import Returns
 from racer import RacerResults
 from model import ModelEvaluator
 import handle_db
+
+logger = logging.getLogger(__name__)
+
+fmt = "%(asctime)s %(levelname)s %(name)s :%(message)s"
+logging.basicConfig(
+    filename="./logs/boatrace.log",
+    level=logging.INFO,
+    format=fmt,
+)
+
+
+class Log:
+    @staticmethod
+    def info(str):
+        logger.info(str)
 
 
 def get_program_list(year: str = "2022", yesterday=False, today=False):
@@ -137,22 +153,35 @@ def get_returns():
     return returns
 
 
-def process_categorical(results, rank, class_int=False, number_del=False):
+def is_same_latest_data():
+    """
+    レース結果と払い戻しの最新データが同じかをチェックする
+    """
+    hdb = handle_db.HandleDB()
+    results_latest = hdb.get_results_latest()
+    returns_latest = hdb.get_returns_latest()
+    if results_latest == returns_latest:
+        return True
+    else:
+        return False
+
+
+def process_categorical(df, rank, class_int=False, number_del=False):
     """
     カテゴリ変数化、モデル作成前処理を行なったデータを返す
     """
-    df = results.copy()
     df["rank"] = df["position"].map(lambda x: 1 if x <= rank else 0)
     df["boat_number"] = df["boat_number"].astype("category")
     df["racer_number"] = df["racer_number"].astype("category")
 
     if number_del:
         df.drop("racer_number", axis=1, inplace=True)
-    if not class_int:
-        df = pd.get_dummies(df, columns=["class"])
-    else:
+    if class_int:
         class_mapping = {'B2': 1, 'B1': 2, 'A2': 3, 'A1': 4}
         df["class"] = df["class"].map(class_mapping)
+    else:
+        df = pd.get_dummies(df, columns=["class"])
+
     df.drop("position", axis=1, inplace=True)
     return df
 
@@ -405,8 +434,7 @@ def process_categorical_predict(df):
     """
     df["boat_number"] = df["boat_number"].astype("category")
     df["racer_number"] = df["racer_number"].astype("category")
-    df.index = df["race_id"]
-    df.drop(["race_id", "date"], axis=1, inplace=True)
+    df.set_index("race_id", inplace=True)
     class_mapping = {"B2": 1, "B2": 2, "A2": 3, "A1": 4}
     df["class"] = df["class"].map(class_mapping)
     return df
@@ -487,3 +515,14 @@ def predict(race_infos):
         predict_list.append(predict)
     df["predict_race"] = predict_list
     print(df)
+
+
+def check_model(returns, X):
+    """
+    モデルの回収率を確認する
+    """
+    with open("params/model_2_10_naci.pickle", mode="rb") as f:
+        lgb_clf = pickle.load(f)
+
+    me = ModelEvaluator(lgb_clf, returns, X)
+    Log.info(me.score)
