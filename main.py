@@ -106,35 +106,49 @@ class BoatRace:
         """
         データを更新する
         """
-        results_all_latest = pd.read_pickle("data/results_all.pickle")
-        results_r_latest = pd.read_pickle("data/results_r.pickle")
-        returns_latest = pd.read_pickle("data/returns.pickle")
+        # 最新のレース結果データと、最新の払い戻しデータが同じデータかを確認
+        if utils.is_same_latest_data():
+            pass
+        else:
+            print("レース結果と払い戻しの最新データに差異があるため、処理を中断します")
+            return
+
+        # DBからデータを取得する
+        results_all_latest = utils.get_results_merge_infos()
 
         latest_date = utils.get_latest_date(results_all_latest)
-        today = datetime.now().date()
+        to_date = latest_date + timedelta(1)
+        dt_now = datetime.now()
+        today = dt_now.date()
         yesterday = (today - timedelta(1))
 
-        # 最新データが前日の場合と前日以前の場合で処理が分かれる
-        if latest_date == today:
-            print("データは最新の状態です")
-        elif latest_date == yesterday:
-            print("最新データは前日")
-            program_list = utils.get_program_list(today=True)
-            race_results = utils.get_scrape_results(program_list)
-            race_infos = utils.get_scrape_infos(program_list)
-
-            # データを更新
-            utils.update_data(results_all_latest,
-                              results_r_latest, returns_latest, race_results, race_infos)
+        # 実行した時間帯により、最新データの対象が変わる
+        if int(dt_now.strftime("%H")) < 23:
+            if latest_date == yesterday:
+                print("データは最新の状態です")
+                return
+            else:
+                print("データは最新ではありません。更新が必要です")
+                from_date = yesterday
+                pass
         else:
-            print("最新データは前日以前")
-            program_list = utils.get_between_program(latest_date)
-            race_results = utils.get_scrape_results(program_list)
-            race_infos = utils.get_scrape_infos(program_list)
+            if latest_date == today:
+                print("データは最新の状態です")
+                return
+            else:
+                print("データは最新ではありません。更新が必要です")
+                from_date = today
+                pass
 
-            # データを更新
-            utils.update_data(results_all_latest,
-                              race_results, race_infos, between=True)
+        # 過去データをスクレイピングする
+        program_list = utils.get_between_program(to_date, from_date)
+        print(program_list)
+
+        results = utils.get_scrape_results(program_list)
+        infos = utils.get_scrape_infos(program_list)
+
+        # データを保存
+        utils.save_scrape_data(results, infos)
 
     def predict_today(self):
         """

@@ -342,6 +342,9 @@ def save_model(gain_dict, model, rank, class_int, number_del, seed):
 
 
 def get_latest_date(results_all):
+    """
+    データの最新日付を返す
+    """
     latest_date = results_all.sort_values(
         "date", ascending=False).head(1)["date"].values[0]
     latest_date = datetime.fromtimestamp(
@@ -349,83 +352,41 @@ def get_latest_date(results_all):
     return latest_date - timedelta(1)
 
 
-def get_between_date_str(latest_date):
-    latest_date = pd.to_datetime(latest_date)
-    next_latest_date = latest_date + offsets.Day()
-    next_latest_date_str = next_latest_date.strftime('%Y-%m-%d')
+def get_between_program(to_date, from_date):
+    """
+    スクレイピング対象のプログラムリストを返す
+    """
+    to_split = to_date.strftime("%Y-%m-%d").split("-")
+    to_year = to_split[0]
+    to_month = to_split[1]
+    to_day = to_split[2]
 
-    now = datetime.now().date()
-    today_str = now.strftime('%Y-%m-%d')
-
-    return today_str, next_latest_date_str
-
-
-def get_between_program(latest_date):
-    today, next_latest_date = get_between_date_str(latest_date)
-
-    today_split = today.split("-")
-    today_year = today_split[0]
-    today_month = today_split[1]
-    today_day = today_split[2]
-    latest_split = next_latest_date.split("-")
-    latest_year = latest_split[0]
-    latest_month = latest_split[1]
-    latest_day = latest_split[2]
+    from_split = from_date.strftime("%Y-%m-%d").split("-")
+    from_year = from_split[0]
+    from_month = from_split[1]
+    from_day = from_split[2]
 
     program_list = []
 
-    if int(today_month) == int(latest_month):
+    if int(to_month) == int(from_month):
         print("最新データは今月中")
         for place in range(1, 25, 1):
-            for day in range(int(latest_day), int(today) + 1, 1):
+            for day in range(int(to_day), int(from_day) + 1, 1):
                 program_list.append(
-                    "%s%s/%s/%s" % (latest_year, str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
-    elif int(today_month) != int(latest_month):
+                    "%s%s/%s/%s" % (from_year, str(from_month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
+    elif int(to_month) != int(from_month):
         print("最新データは先月以前")
-        for month in range(int(latest_month), int(today_month) + 1, 1):
+        for month in range(int(to_month), int(from_month) + 1, 1):
             for place in range(1, 25, 1):
-                if int(today_month) == int(month):
-                    for day in range(1, int(today_day) + 1, 1):
+                if int(from_month) == int(month):
+                    for day in range(1, int(from_day) + 1, 1):
                         program_list.append(
-                            "%s%s/%s/%s" % (latest_year, str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
+                            "%s%s/%s/%s" % (from_year, str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
                 else:
                     for day in range(1, 32, 1):
                         program_list.append(
-                            "%s%s/%s/%s" % (latest_year, str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
+                            "%s%s/%s/%s" % (from_year, str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
     return program_list
-
-
-# def update_data(results_all_latest, results_r_latest, returns_latest, race_results, race_infos, between=False):
-#     results = change_format_results(race_results)
-#     infos = change_format_infos(race_infos)
-
-#     r = Result(results)
-#     i = Infos(infos)
-#     r.preprocessing()
-#     i.preprocessing()
-
-#     results_all_new = r.merge_infos(r.results_p, i.infos_p)
-
-#     rr = RacerResults()
-#     n_samples_list = [5, 9, "all"]
-#     if between:
-#         results_r_new = rr.update_between_data(
-#             results_r_latest, results_all_new, n_samples_list)
-#     else:
-#         results_r_new = rr.update_data(
-#             results_all_latest, results_all_new, n_samples_list)
-
-#     rt = Return(results)
-#     rt.preprocessing()
-#     returns_new = rt.returns
-
-#     results_all = pd.concat([results_all_latest, results_all_new])
-#     results_r = pd.concat([results_r_latest, results_r_new])
-#     returns = pd.concat([returns_latest, returns_new])
-
-#     results_all.to_pickle("data/results_all.pickle")
-#     results_r.to_pickle("data/results_r.pickle")
-#     returns.to_pickle("data/returns.pickle")
 
 
 def process_categorical_predict(df):
