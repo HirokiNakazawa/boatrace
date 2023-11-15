@@ -37,6 +37,22 @@ class Log:
         logger.info(str)
 
 
+def get_file_name(rank, class_int, number_del, seed):
+    """
+    ファイル名を返す
+    """
+    str_ci = ""
+    str_nd = ""
+
+    if class_int:
+        str_ci = "_ci"
+    if number_del:
+        str_nd = "_nd"
+
+    file_name = "%d_%d%s%s" % (rank, seed, str_ci, str_nd)
+    return file_name
+
+
 def get_program_list(year: str = "2022", yesterday=False, today=False):
     """
     スクレイピングするプログラムリストを返す
@@ -304,41 +320,46 @@ def get_gain_dict(lgb_clf, returns, X_test):
     return gain_dict
 
 
-def save_model(gain_dict, model, rank, class_int, number_del, seed):
+def change_format_gain_dict(gain_dict):
     """
-    モデルとパラメータを保存する
+    gainの辞書をJSON形式にフォーマットし、返す
     """
-    params = {}
-    str_ci = ""
-    str_nd = ""
-
+    gains = {}
     for k, v in gain_dict.items():
-        return_max = v[v["n_bets"] > 200].sort_values(
-            "return_rate", ascending=False).head(1)
-        max_return_rate = return_max.iloc[0]["return_rate"]
-        if max_return_rate > 110:
-            params[k] = {}
-            params[k]["threshold"] = return_max.index[0]
-            params[k]["return_rate"] = max_return_rate
+        datas = {}
+        data = v[(v["n_bets"] > 100) & (v["return_rate"] > 100)]
+        if not data.empty:
+            for index, row in data.iterrows():
+                datas[index] = {}
+                datas[index]["n_bets"] = row["n_bets"]
+                datas[index]["return_rate"] = row["return_rate"]
+                datas[index]["return_money"] = (
+                    row["n_bets"] * 100 * row["return_rate"] * 0.01) - (row["n_bets"] * 100)
+            gains[k] = datas
+        else:
+            pass
+    return gains
 
-    print(params)
 
-    if params:
-        if class_int:
-            str_ci = "_ci"
-        if number_del:
-            str_nd = "_nd"
+def save_gain_dict(gain_dict, rank, class_int, number_del, seed):
+    """
+    gainの辞書を保存する
+    """
+    gains = change_format_gain_dict(gain_dict)
+    file_name = get_file_name(rank, class_int, number_del, seed)
+    gain_file_name = "gain/gain_%s.json" % (file_name)
+    with open(gain_file_name, mode="w") as f:
+        json.dump(gains, f, ensure_ascii=False)
 
-        file_name = "params/model_%d_%d%s%s" % (rank, seed, str_ci, str_nd)
-        print(file_name)
 
-        model_file_name = file_name + ".pickle"
-        with open(model_file_name, mode="wb") as f:
-            pickle.dump(model, f)
-
-        json_file_name = file_name + ".json"
-        with open(json_file_name, "w") as f:
-            json.dump(params, f, ensure_ascii=False)
+def save_model(model, rank, class_int, number_del, seed):
+    """
+    モデルを保存する
+    """
+    file_name = get_file_name(rank, class_int, number_del, seed)
+    model_file_name = "params/model_%s.pickle" % (file_name)
+    with open(model_file_name, mode="wb") as f:
+        pickle.dump(model, f)
 
 
 def get_latest_date(results_all):
@@ -396,6 +417,7 @@ def process_categorical_predict(df):
     df["boat_number"] = df["boat_number"].astype("category")
     df["racer_number"] = df["racer_number"].astype("category")
     df.set_index("race_id", inplace=True)
+    df.drop("date", axis=1, inplace=True)
     class_mapping = {"B2": 1, "B2": 2, "A2": 3, "A1": 4}
     df["class"] = df["class"].map(class_mapping)
     return df
@@ -448,7 +470,7 @@ def preprocessing_3(model, target_df, threshold):
     return df_3
 
 
-def predict(race_infos):
+def predict(race_infos, rank, class_int, number_del, seed, threshold):
     """
     予想する
     """
@@ -458,10 +480,14 @@ def predict(race_infos):
     shusso_df = i.infos_p
     target_df = process_categorical_predict(shusso_df)
 
-    with open("params/model_2_10_naci.pickle", mode="rb") as f:
+    file_name = get_file_name(rank, class_int, number_del, seed)
+    model_file_name = "params/model_%s.pickle" % (file_name)
+    print(model_file_name)
+
+    with open(model_file_name, mode="rb") as f:
         lgb_clf = pickle.load(f)
 
-    df = preprocessing_3(lgb_clf, target_df, threshold=0.66)
+    df = preprocessing_3(lgb_clf, target_df, threshold=threshold)
 
     race_id_list = df.index.unique()
     predict_list = []
@@ -478,12 +504,20 @@ def predict(race_infos):
     print(df)
 
 
-def check_model(returns, X):
+def check_model(returns, X, rank, class_int, number_del, seed):
     """
     モデルの回収率を確認する
     """
-    with open("params/model_2_10_naci.pickle", mode="rb") as f:
+    file_name = get_file_name(rank, class_int, number_del, seed)
+    model_file_name = "params/model_%s.pickle" % (file_name)
+    print(model_file_name)
+
+    with open(model_file_name, mode="rb") as f:
         lgb_clf = pickle.load(f)
 
-    me = ModelEvaluator(lgb_clf, returns, X)
-    Log.info(me.score)
+    gain_dict = get_gain_dict(lgb_clf, returns, X)
+    gains = change_format_gain_dict(gain_dict)
+
+    gain_file_name = "gain/confirm_gain_%s.json" % (file_name)
+    with open(gain_file_name, "w") as f:
+        json.dump(gains, f, ensure_ascii=False)

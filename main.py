@@ -11,6 +11,7 @@ rank = int(os.getenv("RANK"))
 class_int = os.getenv("CLASS_INT", "False") == "True"
 number_del = os.getenv("NUMBER_DEL", "False") == "True"
 seed = int(os.getenv("SEED"))
+threshold = float(os.getenv("THRESHOLD"))
 
 
 class BoatRace:
@@ -95,12 +96,14 @@ class BoatRace:
         X_train, y_train, X_test, y_test = utils.get_train_test(results_c)
         lgb_clf = utils.get_lgb_clf(params_o, X_train, y_train)
 
-        # モデルを評価
+        # モデルを評価し、gainの辞書を取得
         gain_dict = utils.get_gain_dict(lgb_clf, returns, X_test)
 
-        # モデルとパラメータを保存
-        utils.save_model(gain_dict, lgb_clf, rank,
-                         class_int, number_del, seed)
+        # gainの辞書を保存
+        utils.save_gain_dict(gain_dict, rank, class_int, number_del, seed)
+
+        # モデルを保存
+        utils.save_model(lgb_clf, rank, class_int, number_del, seed)
 
     def update(self):
         """
@@ -158,20 +161,33 @@ class BoatRace:
         race_infos = utils.get_scrape_infos(program_list)
 
         # 当日の予想を行う
-        utils.predict(race_infos)
+        utils.predict(race_infos, rank, class_int, number_del, seed, threshold)
 
     def check_rate(self):
         """
         現状のモデルの回収率を算出する
         """
-        results_all = pd.read_pickle("data/results_all.pickle")
-        returns = pd.read_pickle("data/returns.pickle")
+        # 最新のレース結果データと、最新の払い戻しデータが同じデータかを確認
+        if utils.is_same_latest_data():
+            pass
+        else:
+            print("レース結果と払い戻しの最新データに差異があるため、処理を中断します")
+            return
 
-        results_c = utils.process_categorical(results_all, 2, True, False)
+        # DBからデータを取得する
+        results_all = utils.get_results_merge_infos()
+        returns = utils.get_returns()
+
+        # race_idをindexに変換
+        results_all.set_index("race_id", inplace=True)
+        returns.set_index("race_id", inplace=True)
+
+        results_c = utils.process_categorical(
+            results_all, rank, class_int, number_del)
         X_train, y_train, X_test, y_test = utils.get_train_test(results_c)
 
         # 回収率を算出
-        utils.check_model(returns, X_test)
+        utils.check_model(returns, X_test, rank, class_int, number_del, seed)
 
 
 if __name__ == "__main__":
