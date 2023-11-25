@@ -1,5 +1,4 @@
 import utils
-import pandas as pd
 import os
 import argparse
 from datetime import datetime, timedelta
@@ -15,10 +14,10 @@ threshold = float(os.getenv("THRESHOLD"))
 
 
 class BoatRace:
-    def __init__(self, args):
+    def __init__(self, args) -> None:
         self.args = args
 
-    def main(self):
+    def main(self) -> None:
         if self.args.scrape:
             # 年単位でスクレイピングし、DBにデータを保存する
             year = self.args.scrape
@@ -35,6 +34,9 @@ class BoatRace:
         elif self.args.check:
             # 現状のモデルの回収率を計算
             self.check_rate()
+        elif self.args.save_data:
+            # 現状のデータをpickleデータに変換し、保存
+            self.save_data()
         elif self.args.model_update:
             pass
         elif self.args.debug:
@@ -47,7 +49,7 @@ class BoatRace:
         else:
             print(self.args)
 
-    def scrape(self, year):
+    def scrape(self, year: str) -> None:
         """
         年単位でデータをスクレイピングし、DBにデータを格納する
         """
@@ -58,7 +60,7 @@ class BoatRace:
         # データを保存
         utils.save_scrape_data(results, infos, year)
 
-    def create_model(self):
+    def create_model(self) -> None:
         """
         モデルを作成する
         """
@@ -105,7 +107,7 @@ class BoatRace:
         # モデルを保存
         utils.save_model(lgb_clf, rank, class_int, number_del, seed)
 
-    def update(self):
+    def update(self) -> None:
         """
         データを更新する
         """
@@ -145,15 +147,13 @@ class BoatRace:
 
         # 過去データをスクレイピングする
         program_list = utils.get_between_program(to_date, from_date)
-        print(program_list)
-
         results = utils.get_scrape_results(program_list)
         infos = utils.get_scrape_infos(program_list)
 
         # データを保存
         utils.save_scrape_data(results, infos)
 
-    def predict_today(self):
+    def predict_today(self) -> None:
         """
         当日のレースを予測する
         """
@@ -163,7 +163,7 @@ class BoatRace:
         # 当日の予想を行う
         utils.predict(race_infos, rank, class_int, number_del, seed, threshold)
 
-    def check_rate(self):
+    def check_rate(self) -> None:
         """
         現状のモデルの回収率を算出する
         """
@@ -189,6 +189,25 @@ class BoatRace:
         # 回収率を算出
         utils.check_model(returns, X_test, rank, class_int, number_del, seed)
 
+    def save_data(self) -> None:
+        """
+        現状のデータをpickleに変換し、保存する
+        """
+        # DBからデータを取得する
+        results_all = utils.get_results_merge_infos()
+        racer_results = utils.get_racer_results()
+        returns = utils.get_returns()
+
+        # race_idをindexに変換
+        results_all.set_index("race_id", inplace=True)
+        racer_results.set_index("racer_number", inplace=True)
+        returns.set_index("race_id", inplace=True)
+
+        # 保存
+        results_all.to_pickle("output/results_all.pickle")
+        racer_results.to_pickle("output/racer_results.pickle")
+        returns.to_pickle("output/returns.pickle")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -203,6 +222,8 @@ if __name__ == "__main__":
                         action="store_true")
     parser.add_argument("-mu", "--model_update", help="モデルをアップデート",
                         action="store_true")
+    parser.add_argument("-sd", "--save_data",
+                        help="DBのデータをpickleデータに変換し、保存", action="store_true")
     parser.add_argument("-d", "--debug", help="デバッグ用", action="store_true")
     args = parser.parse_args()
 

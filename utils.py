@@ -4,40 +4,23 @@
 番組表URL   :https://www1.mbrace.or.jp/od2/B/202201/01/02.html
 """
 
-import json
-import pickle
-import logging
 from datetime import datetime, timedelta
 from tqdm import tqdm
+from typing import Tuple, Callable
+import json
+import pickle
 import pandas as pd
-import pandas.tseries.offsets as offsets
 import lightgbm as lgb
 import optuna.integration.lightgbm as lgb_o
 
 from results import Results
 from infos import Infos
 from returns import Returns
-from racer import RacerResults
 from model import ModelEvaluator
-import handle_db
-
-logger = logging.getLogger(__name__)
-
-fmt = "%(asctime)s %(levelname)s %(name)s :%(message)s"
-logging.basicConfig(
-    filename="./logs/boatrace.log",
-    level=logging.INFO,
-    format=fmt,
-)
+from handle_db import HandleDB
 
 
-class Log:
-    @staticmethod
-    def info(str):
-        logger.info(str)
-
-
-def get_file_name(rank, class_int, number_del, seed):
+def get_file_name(rank: int, class_int: bool, number_del: bool, seed: int) -> str:
     """
     ファイル名を返す
     """
@@ -53,7 +36,7 @@ def get_file_name(rank, class_int, number_del, seed):
     return file_name
 
 
-def get_program_list(year: str = "2022", yesterday=False, today=False):
+def get_program_list(year: str = "2022", yesterday: bool = False, today: bool = False) -> list:
     """
     スクレイピングするプログラムリストを返す
     """
@@ -79,17 +62,7 @@ def get_program_list(year: str = "2022", yesterday=False, today=False):
     return program_list
 
 
-def get_program_list_debug():
-    program_list = []
-    for month in range(7, 8, 1):
-        for place in range(1, 25, 1):
-            for day in range(1, 32, 1):
-                program_list.append("2023%s/%s/%s" %
-                                    (str(month).zfill(2), str(place).zfill(2), str(day).zfill(2)))
-    return program_list
-
-
-def change_format_scrape_data(data):
+def change_format_scrape_data(data: dict) -> dict:
     """
     スクレイピングした生データを、json形式に変換して返す
     """
@@ -99,7 +72,7 @@ def change_format_scrape_data(data):
     return data_dict
 
 
-def get_scrape_results(program_list: list):
+def get_scrape_results(program_list: list) -> dict:
     """
     スクレイピングしたレース結果を返す
     """
@@ -108,7 +81,7 @@ def get_scrape_results(program_list: list):
     return results
 
 
-def get_scrape_infos(program_list: list):
+def get_scrape_infos(program_list: list) -> dict:
     """
     スクレイピングしたレース情報を返す
     """
@@ -117,7 +90,7 @@ def get_scrape_infos(program_list: list):
     return infos
 
 
-def save_scrape_data(results: dict = {}, infos: dict = {}, year: str = ""):
+def save_scrape_data(results: dict = {}, infos: dict = {}, year: str = "") -> None:
     """
     スクレイピングしたデータを保存する
     """
@@ -147,33 +120,42 @@ def save_scrape_data(results: dict = {}, infos: dict = {}, year: str = ""):
         i.infos_p.to_pickle(infos_file_name)
         rt.returns_p.to_pickle(returns_file_name)
 
-    hdb = handle_db.HandleDB()
+    hdb = HandleDB()
     hdb.insert_scrape_data(r.results_p, i.infos_p, rt.returns_p)
 
 
-def get_results_merge_infos():
+def get_results_merge_infos() -> pd.DataFrame:
     """
     resultsとinfosを結合したデータを返す
     """
-    hdb = handle_db.HandleDB()
+    hdb = HandleDB()
     results_merge_infos = hdb.get_results_all()
     return results_merge_infos
 
 
-def get_returns():
+def get_racer_results() -> pd.DataFrame:
+    """
+    racer_resultsを返す
+    """
+    hdb = HandleDB()
+    racer_results = hdb.get_racer_results()
+    return racer_results
+
+
+def get_returns() -> pd.DataFrame:
     """
     returnsを返す
     """
-    hdb = handle_db.HandleDB()
+    hdb = HandleDB()
     returns = hdb.get_returns()
     return returns
 
 
-def is_same_latest_data():
+def is_same_latest_data() -> bool:
     """
     レース結果と払い戻しの最新データが同じかをチェックする
     """
-    hdb = handle_db.HandleDB()
+    hdb = HandleDB()
     results_latest = hdb.get_results_latest()
     returns_latest = hdb.get_returns_latest()
     if results_latest == returns_latest:
@@ -182,7 +164,7 @@ def is_same_latest_data():
         return False
 
 
-def process_categorical(df, rank, class_int=False, number_del=False):
+def process_categorical(df: pd.DataFrame, rank: int, class_int: bool = False, number_del: bool = False) -> pd.DataFrame:
     """
     カテゴリ変数化、モデル作成前処理を行なったデータを返す
     """
@@ -202,7 +184,7 @@ def process_categorical(df, rank, class_int=False, number_del=False):
     return df
 
 
-def split_data(df, test_size=0.3):
+def split_data(df: pd.DataFrame, test_size: float = 0.3) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     データを分割する
     """
@@ -216,7 +198,7 @@ def split_data(df, test_size=0.3):
     return train, test
 
 
-def get_train_valid(results_c):
+def get_train_valid(results_c: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     訓練データと検証データを返す
     """
@@ -229,7 +211,7 @@ def get_train_valid(results_c):
     return X_train, y_train, X_valid, y_valid
 
 
-def get_lgb_train_valid(results):
+def get_lgb_train_valid(results: pd.DataFrame) -> Tuple[lgb_o.Dataset, lgb_o.Dataset, dict]:
     """
     optuna用にデータを用意
     """
@@ -246,7 +228,7 @@ def get_lgb_train_valid(results):
     return lgb_train, lgb_valid, params
 
 
-def get_train_test(results_c):
+def get_train_test(results_c: pd.DataFrame) -> pd.DataFrame:
     """
     訓練データとテストデータを返す
     """
@@ -258,7 +240,7 @@ def get_train_test(results_c):
     return X_train, y_train, X_test, y_test
 
 
-def get_optuna_params(params, lgb_train, lgb_valid, seed):
+def get_optuna_params(params: dict, lgb_train: lgb_o.Dataset, lgb_valid: lgb_o.Dataset, seed) -> dict:
     """
     パラメータチューニングを行なった結果を返す
     """
@@ -274,7 +256,7 @@ def get_optuna_params(params, lgb_train, lgb_valid, seed):
     return params_o
 
 
-def get_lgb_clf(params_o, X_train, y_train):
+def get_lgb_clf(params_o: dict, X_train: pd.DataFrame, y_train: pd.DataFrame) -> lgb.LGBMClassifier:
     """
     モデルを作成し、返す
     """
@@ -283,7 +265,7 @@ def get_lgb_clf(params_o, X_train, y_train):
     return lgb_clf
 
 
-def gain(return_func, n_samples=100):
+def gain(return_func: Callable[[float], Tuple[int, float]], n_samples: int = 100) -> pd.DataFrame:
     """
     閾値ごとの回収率を算出する
     """
@@ -291,15 +273,17 @@ def gain(return_func, n_samples=100):
     try:
         for i in tqdm(range(n_samples)):
             threshold = 0.5 + (((1 - 0.5) / n_samples) * i)
-            n_bets, return_rate = return_func(threshold)
+            df_hits, n_bets, return_rate, return_median = return_func(
+                threshold)
             gain[threshold] = {"n_bets": n_bets,
-                               "return_rate": return_rate}
+                               "return_rate": return_rate,
+                               "return_median": return_median}
         return pd.DataFrame(gain).T
     except:
         return pd.DataFrame(gain).T
 
 
-def get_gain_dict(lgb_clf, returns, X_test):
+def get_gain_dict(lgb_clf: lgb.LGBMClassifier, returns: pd.DataFrame, X_test: pd.DataFrame) -> dict:
     """
     モデルを評価し、gainの辞書を返す
     """
@@ -310,17 +294,12 @@ def get_gain_dict(lgb_clf, returns, X_test):
     gain_2f = gain(me.nirenpuku_return)
     gain_3t = gain(me.sanrentan_return)
     gain_3f = gain(me.sanrenpuku_return)
-    gain_2t_n = gain(me.nirentan_nagashi)
-    gain_2t_b = gain(me.nirentan_box)
-    gain_3t_2 = gain(me.sanrentan_nagashi_2)
-    gain_3t_3 = gain(me.sanrentan_nagashi_3)
-    gain_3t_b = gain(me.sanrentan_box)
-    gain_dict = {"gain_t": gain_t, "gain_f": gain_f, "gain_2t": gain_2t, "gain_2f": gain_2f, "gain_3t": gain_3t, "gain_3f": gain_3f,
-                 "gain_2t_n": gain_2t_n, "gain_2t_b": gain_2t_b, "gain_3t_2": gain_3t_2, "gain_3t_3": gain_3t_3, "gain_3t_b": gain_3t_b}
+    gain_dict = {"gain_t": gain_t, "gain_f": gain_f, "gain_2t": gain_2t,
+                 "gain_2f": gain_2f, "gain_3t": gain_3t, "gain_3f": gain_3f}
     return gain_dict
 
 
-def change_format_gain_dict(gain_dict):
+def change_format_gain_dict(gain_dict: dict) -> dict:
     """
     gainの辞書をJSON形式にフォーマットし、返す
     """
@@ -333,6 +312,7 @@ def change_format_gain_dict(gain_dict):
                 datas[index] = {}
                 datas[index]["n_bets"] = row["n_bets"]
                 datas[index]["return_rate"] = row["return_rate"]
+                datas[index]["return_median"] = row["return_median"]
                 datas[index]["return_money"] = (
                     row["n_bets"] * 100 * row["return_rate"] * 0.01) - (row["n_bets"] * 100)
             gains[k] = datas
@@ -341,7 +321,7 @@ def change_format_gain_dict(gain_dict):
     return gains
 
 
-def save_gain_dict(gain_dict, rank, class_int, number_del, seed):
+def save_gain_dict(gain_dict: dict, rank: int, class_int: bool, number_del: bool, seed: int) -> None:
     """
     gainの辞書を保存する
     """
@@ -352,7 +332,7 @@ def save_gain_dict(gain_dict, rank, class_int, number_del, seed):
         json.dump(gains, f, ensure_ascii=False)
 
 
-def save_model(model, rank, class_int, number_del, seed):
+def save_model(model: lgb.LGBMClassifier, rank: int, class_int: bool, number_del: bool, seed: int) -> None:
     """
     モデルを保存する
     """
@@ -362,7 +342,7 @@ def save_model(model, rank, class_int, number_del, seed):
         pickle.dump(model, f)
 
 
-def get_latest_date(results_all):
+def get_latest_date(results_all: pd.DataFrame):
     """
     データの最新日付を返す
     """

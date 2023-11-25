@@ -75,135 +75,95 @@ class ModelEvaluator:
         df_3["pred_3"] = df_3["pred_3"].astype(int)
         return df_3
 
+    def hits(self, df, kind=""):
+        n_bets = len(df)
+        if kind == "tansho":
+            df_hits = df[df["boat_number"] == df["win_t"]]
+            df_median = df_hits["return_t"].median()
+            money = sum(df_hits["return_t"])
+            median_money = df_median * len(df_hits)
+        elif kind == "fukusho":
+            df_hits = df[(df["boat_number"] == df["win_f1"]) |
+                         (df["boat_number"] == df["win_f2"])]
+            df_hits_1 = df_hits[df_hits["boat_number"] == df_hits["win_f1"]]
+            df_hits_2 = df_hits[df_hits["boat_number"] == df_hits["win_f2"]]
+            df_median_1 = df_hits_1["return_f1"].median()
+            df_median_2 = df_hits_2["return_f2"].median()
+            money = sum(df[df["boat_number"] == df["win_f1"]]["return_f1"]) + \
+                sum(df[df["boat_number"] == df["win_f2"]]["return_f2"])
+            median_money = df_median_1 * \
+                len(df_hits_1) + df_median_2 * len(df_hits_2)
+        elif kind == "nirentan":
+            df_hits = df[(df["pred_1"] == df["win_2t_1"]) &
+                         (df["pred_2"] == df["win_2t_2"])]
+            df_median = df_hits["return_2t"].median()
+            money = sum(df_hits["return_2t"])
+            median_money = df_median * len(df_hits)
+        elif kind == "nirenpuku":
+            df_hits = df[((df["pred_1"] == df["win_2f_1"]) & (df["pred_2"] == df["win_2f_2"])) |
+                         ((df["pred_1"] == df["win_2f_2"]) & (df["pred_2"] == df["win_2f_1"]))]
+            df_median = df_hits["return_2f"].median()
+            money = sum(df_hits["return_2f"])
+            median_money = df_median * len(df_hits)
+        elif kind == "sanrentan":
+            df_hits = df[(df["pred_1"] == df["win_3t_1"]) & (
+                df["pred_2"] == df["win_3t_2"]) & (df["pred_3"] == df["win_3t_3"])]
+            df_median = df_hits["return_3t"].median()
+            money = sum(df_hits["return_3t"])
+            median_money = df_median * len(df_hits)
+        elif kind == "sanrenpuku":
+            df_hits = df[(df["pred_1"] == df["win_3f_1"]) & (df["pred_2"] == df["win_3f_2"]) & (df["pred_3"] == df["win_3f_3"]) |
+                         (df["pred_1"] == df["win_3f_1"]) & (df["pred_2"] == df["win_3f_3"]) & (df["pred_3"] == df["win_3f_2"]) |
+                         (df["pred_1"] == df["win_3f_2"]) & (df["pred_2"] == df["win_3f_1"]) & (df["pred_3"] == df["win_3f_3"]) |
+                         (df["pred_1"] == df["win_3f_2"]) & (df["pred_2"] == df["win_3f_3"]) & (df["pred_3"] == df["win_3f_1"]) |
+                         (df["pred_1"] == df["win_3f_3"]) & (df["pred_2"] == df["win_3f_1"]) & (df["pred_3"] == df["win_3f_2"]) |
+                         (df["pred_1"] == df["win_3f_3"]) & (df["pred_2"] == df["win_3f_2"]) & (df["pred_3"] == df["win_3f_1"])]
+            df_median = df_hits["return_3f"].median()
+            money = sum(df_hits["return_3f"])
+            median_money = df_median * len(df_hits)
+        else:
+            print("kind is not found")
+            return
+        return_rate = (money / (n_bets * 100)) * 100
+        return_median = (median_money / (n_bets * 100)) * 100
+        return df_hits, n_bets, return_rate, return_median
+
     def tansho_return(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = pred_table.copy()
         df = df[df["pred_0"] == 1]
         df["boat_number"] = df["boat_number"].astype(int)
-        n_bets = len(df)
         df = pd.merge(df, self.tansho, how="left", on="race_id")
-        money = sum(df[df["boat_number"] == df["win_t"]]["return_t"])
-        return_rate = (money / (n_bets * 100)) * 100
-        return n_bets, return_rate
+        return self.hits(df, kind="tansho")
 
     def fukusho_return(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = pred_table.copy()
         df = df[df["pred_0"] == 1]
         df["boat_number"] = df["boat_number"].astype(int)
-        n_bets = len(df)
         df = pd.merge(df, self.fukusho, how="left", on="race_id")
-        money = sum(df[df["boat_number"] == df["win_f1"]]["return_f1"]) +\
-            sum(df[df["boat_number"] == df["win_f2"]]["return_f2"])
-        return_rate = (money / (n_bets * 100)) * 100
-        return n_bets, return_rate
+        return self.hits(df, kind="fukusho")
 
     def nirentan_return(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = self.preprocessing_2(pred_table)
-        n_bets = len(df)
         df = pd.merge(df, self.nirentan, how="left", on="race_id")
-        money = sum(df[(df["pred_1"] == df["win_2t_1"]) & (
-            df["pred_2"] == df["win_2t_2"])]["return_2t"])
-        return_rate = (money / (n_bets * 100)) * 100
-        return n_bets, return_rate
-
-    def nirentan_nagashi(self, threshold=0.5):
-        pred_table = self.pred_table(threshold)
-        df = self.preprocessing_2(pred_table)
-        n_bets = len(df)
-        df = pd.merge(df, self.nirentan, how="left", on="race_id")
-        money = sum(df[df["pred_1"] == df["win_2t_1"]]["return_2t"])
-        return_rate = (money / (n_bets * 500)) * 100
-        return n_bets, return_rate
-
-    def nirentan_box(self, threshold=0.5):
-        pred_table = self.pred_table(threshold)
-        df = self.preprocessing_2(pred_table)
-        n_bets = len(df)
-        df = pd.merge(df, self.nirentan, how="left", on="race_id")
-        money = sum(df[(df["pred_1"] == df["win_2t_1"]) & (df["pred_2"] == df["win_2t_2"])]["return_2t"]) +\
-            sum(df[(df["pred_1"] == df["win_2t_2"]) & (
-                df["pred_2"] == df["win_2t_1"])]["return_2t"])
-        return_rate = (money / (n_bets * 200)) * 100
-        return n_bets, return_rate
+        return self.hits(df, kind="nirentan")
 
     def nirenpuku_return(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = self.preprocessing_2(pred_table)
-        n_bets = len(df)
         df = pd.merge(df, self.nirenpuku, how="left", on="race_id")
-        money = sum(df[((df["pred_1"] == df["win_2f_1"]) & (df["pred_2"] == df["win_2f_2"]))]["return_2f"]) +\
-            sum(df[((df["pred_1"] == df["win_2f_2"]) & (
-                df["pred_2"] == df["win_2f_1"]))]["return_2f"])
-        return_rate = (money / (n_bets * 100)) * 100
-        return n_bets, return_rate
+        return self.hits(df, kind="nirenpuku")
 
     def sanrentan_return(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = self.preprocessing_3(pred_table)
-        n_bets = len(df)
         df = pd.merge(df, self.sanrentan, how="left", on="race_id")
-        money = sum(df[(df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_2"]) &
-                       (df["pred_3"] == df["win_3t_3"])]["return_3t"])
-        return_rate = (money / (n_bets * 100)) * 100
-        return n_bets, return_rate
-
-    def sanrentan_nagashi_2(self, threshold=0.5):
-        pred_table = self.pred_table(threshold)
-        df = self.preprocessing_3(pred_table)
-        n_bets = len(df)
-        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
-        money = sum(df[df["pred_1"] == df["win_3t_1"]]["return_3t"])
-        return_rate = (money / (n_bets * 2000)) * 100
-        return n_bets, return_rate
-
-    def sanrentan_nagashi_3(self, threshold=0.5):
-        pred_table = self.pred_table(threshold)
-        df = self.preprocessing_3(pred_table)
-        n_bets = len(df)
-        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
-        money = sum(df[(df["pred_1"] == df["win_3t_1"]) & (
-            df["pred_2"] == df["win_3t_2"])]["return_3t"])
-        return_rate = (money / (n_bets * 400)) * 100
-        return n_bets, return_rate
-
-    def sanrentan_box(self, threshold=0.5):
-        pred_table = self.pred_table(threshold)
-        df = self.preprocessing_3(pred_table)
-        n_bets = len(df)
-        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
-        money = sum(df[(df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_2"]) &
-                       (df["pred_3"] == df["win_3t_3"])]["return_3t"]) +\
-            sum(df[(df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_3"]) &
-                   (df["pred_3"] == df["win_3t_2"])]["return_3t"]) +\
-            sum(df[(df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_1"]) &
-                   (df["pred_3"] == df["win_3t_3"])]["return_3t"]) +\
-            sum(df[(df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_3"]) &
-                   (df["pred_3"] == df["win_3t_1"])]["return_3t"]) +\
-            sum(df[(df["pred_1"] == df["win_3t_3"]) & (df["pred_2"] == df["win_3t_1"]) &
-                   (df["pred_3"] == df["win_3t_2"])]["return_3t"]) +\
-            sum(df[(df["pred_1"] == df["win_3t_3"]) & (df["pred_2"] == df["win_3t_2"]) &
-                   (df["pred_3"] == df["win_3t_1"])]["return_3t"])
-        return_rate = (money / (n_bets * 600)) * 100
-        return n_bets, return_rate
+        return self.hits(df, kind="sanrentan")
 
     def sanrenpuku_return(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = self.preprocessing_3(pred_table)
-        n_bets = len(df)
         df = pd.merge(df, self.sanrenpuku, how="left", on="race_id")
-        money = sum(df[(df["pred_1"] == df["win_3f_1"]) & (df["pred_2"] == df["win_3f_2"]) &
-                       (df["pred_3"] == df["win_3f_3"])]["return_3f"]) +\
-            sum(df[(df["pred_1"] == df["win_3f_1"]) & (df["pred_2"] == df["win_3f_3"]) &
-                   (df["pred_3"] == df["win_3f_2"])]["return_3f"]) +\
-            sum(df[(df["pred_1"] == df["win_3f_2"]) & (df["pred_2"] == df["win_3f_1"]) &
-                   (df["pred_3"] == df["win_3f_3"])]["return_3f"]) +\
-            sum(df[(df["pred_1"] == df["win_3f_2"]) & (df["pred_2"] == df["win_3f_3"]) &
-                   (df["pred_3"] == df["win_3f_1"])]["return_3f"]) +\
-            sum(df[(df["pred_1"] == df["win_3f_3"]) & (df["pred_2"] == df["win_3f_1"]) &
-                   (df["pred_3"] == df["win_3f_2"])]["return_3f"]) +\
-            sum(df[(df["pred_1"] == df["win_3f_3"]) & (df["pred_2"] == df["win_3f_2"]) &
-                   (df["pred_3"] == df["win_3f_1"])]["return_3f"])
-        return_rate = (money / (n_bets * 100)) * 100
-        return n_bets, return_rate
+        return self.hits(df, kind="sanrenpuku")
