@@ -40,12 +40,7 @@ class BoatRace:
         elif self.args.model_update:
             pass
         elif self.args.debug:
-            program_list = utils.get_program_list_debug()
-            results = utils.get_scrape_results(program_list)
-            infos = utils.get_scrape_infos(program_list)
-
-            # データを保存
-            utils.save_scrape_data(results, infos)
+            df = utils.get_results_merge_racer()
         else:
             print(self.args)
 

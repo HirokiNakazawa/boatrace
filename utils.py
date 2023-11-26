@@ -16,6 +16,7 @@ import optuna.integration.lightgbm as lgb_o
 from results import Results
 from infos import Infos
 from returns import Returns
+from racer import RacerResults
 from model import ModelEvaluator
 from handle_db import HandleDB
 
@@ -140,6 +141,25 @@ def get_racer_results() -> pd.DataFrame:
     hdb = HandleDB()
     racer_results = hdb.get_racer_results()
     return racer_results
+
+
+def get_results_merge_racer() -> pd.DataFrame:
+    """
+    集計した選手別成績データを結合したデータを返す
+    """
+    results_all = get_results_merge_infos()
+    racer_results = get_racer_results()
+    results_all.set_index("race_id", inplace=True)
+    racer_results.set_index("racer_number", inplace=True)
+
+    df = results_all.copy()
+    rr = RacerResults(racer_results)
+    # n_samples_list = [5, 9, "all"]
+    n_samples_list = ["all"]
+    for n_samples in n_samples_list:
+        df = rr.merge_all(df, n_samples)
+    df.to_pickle("tmp/results_merge_racer_all.pickle")
+    return df
 
 
 def get_returns() -> pd.DataFrame:
@@ -273,11 +293,11 @@ def gain(return_func: Callable[[float], Tuple[int, float]], n_samples: int = 100
     try:
         for i in tqdm(range(n_samples)):
             threshold = 0.5 + (((1 - 0.5) / n_samples) * i)
-            df_hits, n_bets, return_rate, return_median = return_func(
+            df_hits, n_bets, use_money, return_rate = return_func(
                 threshold)
             gain[threshold] = {"n_bets": n_bets,
                                "return_rate": return_rate,
-                               "return_median": return_median}
+                               "use_money": use_money}
         return pd.DataFrame(gain).T
     except:
         return pd.DataFrame(gain).T
@@ -294,8 +314,16 @@ def get_gain_dict(lgb_clf: lgb.LGBMClassifier, returns: pd.DataFrame, X_test: pd
     gain_2f = gain(me.nirenpuku_return)
     gain_3t = gain(me.sanrentan_return)
     gain_3f = gain(me.sanrenpuku_return)
-    gain_dict = {"gain_t": gain_t, "gain_f": gain_f, "gain_2t": gain_2t,
-                 "gain_2f": gain_2f, "gain_3t": gain_3t, "gain_3f": gain_3f}
+    gain_2t_n = gain(me.nirentan_nagashi)
+    gain_2t_b = gain(me.nirentan_box)
+    gain_3t_1 = gain(me.sanrentan_nagashi_1)
+    gain_3t_2 = gain(me.sanrentan_nagashi_2)
+    gain_3t_12b = gain(me.sanrentan_12_box)
+    gain_3t_12b_n = gain(me.sanrentan_12_box_nagashi)
+    gain_3t_b = gain(me.sanrentan_box)
+
+    gain_dict = {"gain_t": gain_t, "gain_f": gain_f, "gain_2t": gain_2t, "gain_2f": gain_2f, "gain_3t": gain_3t, "gain_3f": gain_3f, "gain_2t_n": gain_2t_n,
+                 "gain_2t_b": gain_2t_b, "gain_3t_1": gain_3t_1, "gain_3t_2": gain_3t_2, "gain_3t_12b": gain_3t_12b, "gain_3t_12b_n": gain_3t_12b_n, "gain_3t_b": gain_3t_b}
     return gain_dict
 
 
@@ -312,9 +340,8 @@ def change_format_gain_dict(gain_dict: dict) -> dict:
                 datas[index] = {}
                 datas[index]["n_bets"] = row["n_bets"]
                 datas[index]["return_rate"] = row["return_rate"]
-                datas[index]["return_median"] = row["return_median"]
                 datas[index]["return_money"] = (
-                    row["n_bets"] * 100 * row["return_rate"] * 0.01) - (row["n_bets"] * 100)
+                    row["use_money"] * row["return_rate"] * 0.01) - row["use_money"]
             gains[k] = datas
         else:
             pass
