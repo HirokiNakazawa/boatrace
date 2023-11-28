@@ -123,6 +123,7 @@ def save_scrape_data(results: dict = {}, infos: dict = {}, year: str = "") -> No
 
     hdb = HandleDB()
     hdb.insert_scrape_data(r.results_p, i.infos_p, rt.returns_p)
+    hdb.insert_racer_results()
 
 
 def get_results_merge_infos() -> pd.DataFrame:
@@ -143,23 +144,22 @@ def get_racer_results() -> pd.DataFrame:
     return racer_results
 
 
-def get_results_merge_racer() -> pd.DataFrame:
+def get_summary_racer_results() -> pd.DataFrame:
+    """
+    summary_racer_resultsを返す
+    """
+    hdb = HandleDB()
+    summary_racer_results = hdb.get_summary_racer_results()
+    return summary_racer_results
+
+
+def get_results_merge_racer(results_all: pd.DataFrame, summary_racer_results: pd.DataFrame) -> pd.DataFrame:
     """
     集計した選手別成績データを結合したデータを返す
     """
-    results_all = get_results_merge_infos()
-    racer_results = get_racer_results()
-    results_all.set_index("race_id", inplace=True)
-    racer_results.set_index("racer_number", inplace=True)
-
-    df = results_all.copy()
-    rr = RacerResults(racer_results)
-    # n_samples_list = [5, 9, "all"]
-    n_samples_list = ["all"]
-    for n_samples in n_samples_list:
-        df = rr.merge_all(df, n_samples)
-    df.to_pickle("tmp/results_merge_racer_all.pickle")
-    return df
+    results_merge_racer = pd.merge(results_all, summary_racer_results, on=[
+                                   "race_id", "racer_number"], how="left")
+    return results_merge_racer
 
 
 def get_returns() -> pd.DataFrame:

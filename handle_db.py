@@ -56,6 +56,9 @@ class HandleDB:
         elif self.args.racer_results:
             Log.info("選手別データをデータベースに格納開始")
             self.insert_racer_results()
+        elif self.args.summary_racer:
+            Log.info("選手別過去成績集計データをデータベースに格納開始")
+            self.insert_summary_racer_results()
         else:
             print(self.args)
 
@@ -100,16 +103,25 @@ class HandleDB:
 
     def insert_racer_results(self) -> None:
         """
-        線種別データをデータベースに格納する
+        選手 別データをデータベースに格納する
         """
         results_all = self.get_results_all()
         racer_results = results_all[[
             "race_id", "position", "boat_number", "racer_number", "date"]].copy()
         racer_results.to_sql("racer_results", con=engine,
-                             if_exists="append", index=False)
+                             if_exists="replace", index=False)
         Log.info("選手別成績データをデータベースに格納完了")
 
-    def get_results_latest(self) -> None:
+    def insert_summary_racer_results(self) -> None:
+        """
+        選手別過去成績集計データをデータベースに格納する
+        """
+        summary_racer_results = pd.read_pickle(
+            "output/summary_racer_results.pickle")
+        summary_racer_results.to_sql(
+            "summary_racer_results", con=engine, if_exists="append", index=False)
+
+    def get_results_latest(self) -> str:
         """
         DBのレース結果データの最新レースIDを返す
         """
@@ -129,7 +141,7 @@ class HandleDB:
         )
         return df["race_id"].values[0]
 
-    def get_returns_latest(self) -> None:
+    def get_returns_latest(self) -> str:
         """
         DBの払い戻しデータの最新レースIDを返す
         """
@@ -149,7 +161,7 @@ class HandleDB:
         )
         return df["race_id"].values[0]
 
-    def get_results_all(self) -> None:
+    def get_results_all(self) -> pd.DataFrame:
         """
         DBのデータを使用して、results_allを返す
         """
@@ -178,7 +190,7 @@ class HandleDB:
         )
         return df
 
-    def get_racer_results(self) -> None:
+    def get_racer_results(self) -> pd.DataFrame:
         """
         DBのデータを使用して、racer_resultsを返す
         """
@@ -195,7 +207,24 @@ class HandleDB:
         )
         return df
 
-    def get_returns(self) -> None:
+    def get_summary_racer_results(self) -> pd.DataFrame:
+        """
+        DBのデータを使用して、summary_racer_resultsを返す
+        """
+        Log.info("summary_racer_resultsをデータフレーム形式で返す")
+        sql = """
+            SELECT
+                *
+            FROM
+                summary_racer_results
+            """
+        df = pd.read_sql(
+            sql=sql,
+            con=engine
+        )
+        return df
+
+    def get_returns(self) -> pd.DataFrame:
         """
         DBのデータを使用して、returnsを返す
         """
@@ -219,6 +248,8 @@ if __name__ == "__main__":
         "-p", "--past", help="過去データをデータベースに格納", action="store_true")
     parser.add_argument("-rr", "--racer_results",
                         help="選手別成績データをデータベースに格納", action="store_true")
+    parser.add_argument("-sr", "--summary_racer",
+                        help="選手別過去成績集計データをデータベースに格納", action="store_true")
     args = parser.parse_args()
 
     handle_db = HandleDB(args)

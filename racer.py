@@ -17,7 +17,7 @@ class RacerResults:
             raise Exception("n_samples must be > 0")
 
         average_df = filtered_df[["position"]].groupby(
-            level=0).mean().add_suffix("_{}R".format("all"))
+            level=0).mean().add_suffix("_{}R".format(n_samples))
         return average_df
 
     def merge(self, results: pd.DataFrame, date: datetime.date, n_samples: int | str = "all") -> pd.DataFrame:

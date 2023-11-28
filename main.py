@@ -40,7 +40,13 @@ class BoatRace:
         elif self.args.model_update:
             pass
         elif self.args.debug:
-            df = utils.get_results_merge_racer()
+            results_all = utils.get_results_merge_infos()
+            print(results_all.head(1))
+            summary_racer_results = utils.get_summary_racer_results()
+            print(summary_racer_results.head(1))
+            results_merge_racer = utils.get_results_merge_racer(
+                results_all, summary_racer_results)
+            print(results_merge_racer.head(1))
         else:
             print(self.args)
 
@@ -68,14 +74,21 @@ class BoatRace:
 
         # DBからデータを取得する
         results_all = utils.get_results_merge_infos()
+        summary_racer_results = utils.get_summary_racer_results()
         returns = utils.get_returns()
+
+        # 選手別過去成績データを取得する
+        results_merge_racer = utils.get_results_merge_racer(
+            results_all, summary_racer_results)
 
         # race_idをindexに変換
         results_all.set_index("race_id", inplace=True)
+        results_merge_racer.set_index("race_id", inplace=True)
         returns.set_index("race_id", inplace=True)
 
         # カテゴリ変数化、前処理
         results_c = utils.process_categorical(
+            # results_merge_racer,
             results_all,
             rank=rank,
             class_int=class_int,
