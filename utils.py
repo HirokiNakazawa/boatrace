@@ -189,8 +189,6 @@ def process_categorical(df: pd.DataFrame, rank: int, class_int: bool = False, nu
     カテゴリ変数化、モデル作成前処理を行なったデータを返す
     """
     df["rank"] = df["position"].map(lambda x: 1 if x <= rank else 0)
-    df["boat_number"] = df["boat_number"].astype("category")
-    df["racer_number"] = df["racer_number"].astype("category")
 
     if number_del:
         df.drop("racer_number", axis=1, inplace=True)
@@ -199,6 +197,10 @@ def process_categorical(df: pd.DataFrame, rank: int, class_int: bool = False, nu
         df["class"] = df["class"].map(class_mapping)
     else:
         df = pd.get_dummies(df, columns=["class"])
+
+    df["boat_number"] = df["boat_number"].astype("category")
+    df["racer_number"] = df["racer_number"].astype("category")
+    df["class"] = df["class"].astype("category")
 
     df.drop("position", axis=1, inplace=True)
     return df
@@ -243,7 +245,8 @@ def get_lgb_train_valid(results: pd.DataFrame) -> Tuple[lgb_o.Dataset, lgb_o.Dat
     params = {
         "objective": "binary",
         "random_state": 100,
-        "metric": "auc",
+        "metric": "binary_logloss",
+        "verbosity": -1
     }
     return lgb_train, lgb_valid, params
 
@@ -264,12 +267,13 @@ def get_optuna_params(params: dict, lgb_train: lgb_o.Dataset, lgb_valid: lgb_o.D
     """
     パラメータチューニングを行なった結果を返す
     """
+    verbose_eval = 0
     lgb_clf_o = lgb_o.train(
         params, lgb_train,
-        valid_sets=(lgb_train, lgb_valid),
-        verbose_eval=-1,
-        early_stopping_rounds=10,
-        optuna_seed=seed
+        valid_sets=[lgb_valid],
+        optuna_seed=seed,
+        callbacks=[lgb.early_stopping(
+            stopping_rounds=10, verbose=True), lgb.log_evaluation(verbose_eval)]
     )
     params_o = lgb_clf_o.params
     del params_o["early_stopping_round"]
@@ -354,7 +358,7 @@ def save_gain_dict(gain_dict: dict, rank: int, class_int: bool, number_del: bool
     """
     gains = change_format_gain_dict(gain_dict)
     file_name = get_file_name(rank, class_int, number_del, seed)
-    gain_file_name = "gain/gain_%s.json" % (file_name)
+    gain_file_name = "gain/gain_ll_%s.json" % (file_name)
     with open(gain_file_name, mode="w") as f:
         json.dump(gains, f, ensure_ascii=False)
 
@@ -364,7 +368,7 @@ def save_model(model: lgb.LGBMClassifier, rank: int, class_int: bool, number_del
     モデルを保存する
     """
     file_name = get_file_name(rank, class_int, number_del, seed)
-    model_file_name = "params/model_%s.pickle" % (file_name)
+    model_file_name = "params/model_ll_%s.pickle" % (file_name)
     with open(model_file_name, mode="wb") as f:
         pickle.dump(model, f)
 
@@ -421,12 +425,13 @@ def process_categorical_predict(df):
     """
     カテゴリ変数化、前処理を行なった予想に用いるデータを返す
     """
-    df["boat_number"] = df["boat_number"].astype("category")
-    df["racer_number"] = df["racer_number"].astype("category")
     df.set_index("race_id", inplace=True)
     df.drop("date", axis=1, inplace=True)
-    class_mapping = {"B2": 1, "B2": 2, "A2": 3, "A1": 4}
+    class_mapping = {"B1": 1, "B2": 2, "A2": 3, "A1": 4}
     df["class"] = df["class"].map(class_mapping)
+    df["boat_number"] = df["boat_number"].astype("category")
+    df["racer_number"] = df["racer_number"].astype("category")
+    df["class"] = df["class"].astype("category")
     return df
 
 
@@ -488,7 +493,7 @@ def predict(race_infos, rank, class_int, number_del, seed, threshold):
     target_df = process_categorical_predict(shusso_df)
 
     file_name = get_file_name(rank, class_int, number_del, seed)
-    model_file_name = "params/model_%s.pickle" % (file_name)
+    model_file_name = "params/model_cc_%s.pickle" % (file_name)
     print(model_file_name)
 
     with open(model_file_name, mode="rb") as f:

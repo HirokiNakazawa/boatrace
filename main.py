@@ -95,6 +95,7 @@ class BoatRace:
             number_del=number_del
         )
 
+        # for seed in range(10, 31, 1):
         # モデル作成
         lgb_train, lgb_valid, params = utils.get_lgb_train_valid(results_c)
         params_o = utils.get_optuna_params(

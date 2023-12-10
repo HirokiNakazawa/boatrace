@@ -208,6 +208,12 @@ class ModelEvaluator:
         df = pd.merge(df, self.nirenpuku, how="left", on="race_id")
         return self.hits(df, kind="nirenpuku")
 
+    def sanrentan_return(self, threshold=0.5):
+        pred_table = self.pred_table(threshold)
+        df = self.preprocessing_3(pred_table)
+        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
+        return self.hits(df, kind="sanrentan")
+
     def sanrentan_nagashi_1(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
         df = self.preprocessing_3(pred_table)
@@ -231,12 +237,6 @@ class ModelEvaluator:
         df = self.preprocessing_3(pred_table)
         df = pd.merge(df, self.sanrentan, how="left", on="race_id")
         return self.hits(df, kind="sanrentan_12_box_nagashi")
-
-    def sanrentan_return(self, threshold=0.5):
-        pred_table = self.pred_table(threshold)
-        df = self.preprocessing_3(pred_table)
-        df = pd.merge(df, self.sanrentan, how="left", on="race_id")
-        return self.hits(df, kind="sanrentan")
 
     def sanrentan_box(self, threshold=0.5):
         pred_table = self.pred_table(threshold)
