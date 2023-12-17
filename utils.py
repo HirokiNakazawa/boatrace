@@ -427,7 +427,7 @@ def process_categorical_predict(df):
     """
     df.set_index("race_id", inplace=True)
     df.drop("date", axis=1, inplace=True)
-    class_mapping = {"B1": 1, "B2": 2, "A2": 3, "A1": 4}
+    class_mapping = {"B2": 1, "B1": 2, "A2": 3, "A1": 4}
     df["class"] = df["class"].map(class_mapping)
     df["boat_number"] = df["boat_number"].astype("category")
     df["racer_number"] = df["racer_number"].astype("category")
@@ -521,7 +521,7 @@ def check_model(returns, X, rank, class_int, number_del, seed):
     モデルの回収率を確認する
     """
     file_name = get_file_name(rank, class_int, number_del, seed)
-    model_file_name = "params/model_%s.pickle" % (file_name)
+    model_file_name = "params/model_cc_%s.pickle" % (file_name)
     print(model_file_name)
 
     with open(model_file_name, mode="rb") as f:
