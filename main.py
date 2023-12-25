@@ -120,12 +120,12 @@ class BoatRace:
         """
         データを更新する
         """
-        # 最新のレース結果データと、最新の払い戻しデータが同じデータかを確認
-        if utils.is_same_latest_data():
-            pass
-        else:
-            print("レース結果と払い戻しの最新データに差異があるため、処理を中断します")
-            return
+        # # 最新のレース結果データと、最新の払い戻しデータが同じデータかを確認
+        # if utils.is_same_latest_data():
+        #     pass
+        # else:
+        #     print("レース結果と払い戻しの最新データに差異があるため、処理を中断します")
+        #     return
 
         # DBからデータを取得する
         results_all_latest = utils.get_results_merge_infos()
@@ -176,12 +176,12 @@ class BoatRace:
         """
         現状のモデルの回収率を算出する
         """
-        # 最新のレース結果データと、最新の払い戻しデータが同じデータかを確認
-        if utils.is_same_latest_data():
-            pass
-        else:
-            print("レース結果と払い戻しの最新データに差異があるため、処理を中断します")
-            return
+        # # 最新のレース結果データと、最新の払い戻しデータが同じデータかを確認
+        # if utils.is_same_latest_data():
+        #     pass
+        # else:
+        #     print("レース結果と払い戻しの最新データに差異があるため、処理を中断します")
+        #     return
 
         # DBからデータを取得する
         results_all = utils.get_results_merge_infos()
