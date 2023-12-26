@@ -168,9 +168,9 @@ class BoatRace:
         returns_db.set_index("race_id", inplace=True)
 
         # 保存
-        results_db.to_dbickle("output/results_db.pickle")
-        infos_db.to_dbickle("output/infos_db.pickle")
-        returns_db.to_dbickle("output/returns_db.pickle")
+        results_db.to_pickle("output/results_db.pickle")
+        infos_db.to_pickle("output/infos_db.pickle")
+        returns_db.to_pickle("output/returns_db.pickle")
 
 
 if __name__ == "__main__":
