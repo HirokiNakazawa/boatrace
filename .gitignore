@@ -3,6 +3,7 @@ __*
 .DS*
 .env
 
+data
 old
 logs
 gain

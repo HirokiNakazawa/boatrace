@@ -7,12 +7,12 @@ class ModelEvaluator:
         self.model = model
         self.tansho = returns[["win_t", "return_t"]]
         self.fukusho = returns[["win_f1", "return_f1", "win_f2", "return_f2"]]
-        self.nirentan = returns[["win_2t_1", "win_2t_2", "return_2t"]]
-        self.nirenpuku = returns[["win_2f_1", "win_2f_2", "return_2f"]]
-        self.sanrentan = returns[["win_3t_1",
-                                  "win_3t_2", "win_3t_3", "return_3t"]]
-        self.sanrenpuku = returns[["win_3f_1",
-                                   "win_3f_2", "win_3f_3", "return_3f"]]
+        self.nirentan = returns[["win_2_1", "win_2_2", "return_2t"]]
+        self.nirenpuku = returns[["win_2_1", "win_2_2", "return_2f"]]
+        self.sanrentan = returns[["win_3_1",
+                                  "win_3_2", "win_3_3", "return_3t"]]
+        self.sanrenpuku = returns[["win_3_1",
+                                   "win_3_2", "win_3_3", "return_3f"]]
         self.rank_join_df = self.rank_join(X)
 
     def predict_proba(self, X, std=True, minmax=True):
@@ -90,76 +90,76 @@ class ModelEvaluator:
             use_money = n_bets * 100
             return_rate = (money / use_money) * 100
         elif kind == "nirentan":
-            df_hits = df[(df["pred_1"] == df["win_2t_1"]) &
-                         (df["pred_2"] == df["win_2t_2"])]
+            df_hits = df[(df["pred_1"] == df["win_2_1"]) &
+                         (df["pred_2"] == df["win_2_2"])]
             money = sum(df_hits["return_2t"])
             use_money = n_bets * 100
             return_rate = (money / use_money) * 100
         elif kind == "nirentan_nagashi":
-            df_hits = df[df["pred_1"] == df["win_2t_1"]]
+            df_hits = df[df["pred_1"] == df["win_2_1"]]
             money = sum(df_hits["return_2t"])
             use_money = n_bets * 500
             return_rate = (money / use_money) * 100
         elif kind == "nirentan_box":
-            df_hits = df[((df["pred_1"] == df["win_2t_1"]) & (df["pred_2"] == df["win_2t_2"])) |
-                         ((df["pred_1"] == df["win_2t_2"]) & (df["pred_2"] == df["win_2t_1"]))]
+            df_hits = df[((df["pred_1"] == df["win_2_1"]) & (df["pred_2"] == df["win_2_2"])) |
+                         ((df["pred_1"] == df["win_2_2"]) & (df["pred_2"] == df["win_2_1"]))]
             money = sum(df_hits["return_2t"])
             use_money = n_bets * 200
             return_rate = (money / use_money) * 100
         elif kind == "nirenpuku":
             n_bets = len(df)
-            df_hits = df[((df["pred_1"] == df["win_2f_1"]) & (df["pred_2"] == df["win_2f_2"])) |
-                         ((df["pred_1"] == df["win_2f_2"]) & (df["pred_2"] == df["win_2f_1"]))]
+            df_hits = df[((df["pred_1"] == df["win_2_1"]) & (df["pred_2"] == df["win_2_2"])) |
+                         ((df["pred_1"] == df["win_2_2"]) & (df["pred_2"] == df["win_2_1"]))]
             money = sum(df_hits["return_2f"])
             use_money = n_bets * 100
             return_rate = (money / use_money) * 100
         elif kind == "sanrentan":
-            df_hits = df[(df["pred_1"] == df["win_3t_1"]) & (
-                df["pred_2"] == df["win_3t_2"]) & (df["pred_3"] == df["win_3t_3"])]
+            df_hits = df[(df["pred_1"] == df["win_3_1"]) & (
+                df["pred_2"] == df["win_3_2"]) & (df["pred_3"] == df["win_3_3"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 100
             return_rate = (money / use_money) * 100
         elif kind == "sanrentan_nagashi_1":
-            df_hits = df[df["pred_1"] == df["win_3t_1"]]
+            df_hits = df[df["pred_1"] == df["win_3_1"]]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 2000
             return_rate = (money / use_money) * 100
         elif kind == "sanrentan_nagashi_2":
-            df_hits = df[(df["pred_1"] == df["win_3t_1"]) &
-                         (df["pred_2"] == df["win_3t_2"])]
+            df_hits = df[(df["pred_1"] == df["win_3_1"]) &
+                         (df["pred_2"] == df["win_3_2"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 400
             return_rate = (money / use_money) * 100
         elif kind == "sanrentan_12_box":
-            df_hits = df[(((df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_2"])) |
-                         ((df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_1"]))) &
-                         (df["pred_3"] == df["win_3t_3"])]
+            df_hits = df[(((df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_2"])) |
+                         ((df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_1"]))) &
+                         (df["pred_3"] == df["win_3_3"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 200
             return_rate = (money / use_money) * 100
         elif kind == "sanrentan_12_box_nagashi":
-            df_hits = df[((df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_2"])) |
-                         ((df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_1"]))]
+            df_hits = df[((df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_2"])) |
+                         ((df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_1"]))]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 800
             return_rate = (money / use_money) * 100
         elif kind == "sanrentan_box":
-            df_hits = df[(df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_2"]) & (df["pred_3"] == df["win_3t_3"]) |
-                         (df["pred_1"] == df["win_3t_1"]) & (df["pred_2"] == df["win_3t_3"]) & (df["pred_3"] == df["win_3t_2"]) |
-                         (df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_1"]) & (df["pred_3"] == df["win_3t_3"]) |
-                         (df["pred_1"] == df["win_3t_2"]) & (df["pred_2"] == df["win_3t_3"]) & (df["pred_3"] == df["win_3t_1"]) |
-                         (df["pred_1"] == df["win_3t_3"]) & (df["pred_2"] == df["win_3t_1"]) & (df["pred_3"] == df["win_3t_2"]) |
-                         (df["pred_1"] == df["win_3t_3"]) & (df["pred_2"] == df["win_3t_2"]) & (df["pred_3"] == df["win_3t_1"])]
+            df_hits = df[(df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_2"]) & (df["pred_3"] == df["win_3_3"]) |
+                         (df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_3"]) & (df["pred_3"] == df["win_3_2"]) |
+                         (df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_1"]) & (df["pred_3"] == df["win_3_3"]) |
+                         (df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_3"]) & (df["pred_3"] == df["win_3_1"]) |
+                         (df["pred_1"] == df["win_3_3"]) & (df["pred_2"] == df["win_3_1"]) & (df["pred_3"] == df["win_3_2"]) |
+                         (df["pred_1"] == df["win_3_3"]) & (df["pred_2"] == df["win_3_2"]) & (df["pred_3"] == df["win_3_1"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 600
             return_rate = (money / use_money) * 100
         elif kind == "sanrenpuku":
-            df_hits = df[(df["pred_1"] == df["win_3f_1"]) & (df["pred_2"] == df["win_3f_2"]) & (df["pred_3"] == df["win_3f_3"]) |
-                         (df["pred_1"] == df["win_3f_1"]) & (df["pred_2"] == df["win_3f_3"]) & (df["pred_3"] == df["win_3f_2"]) |
-                         (df["pred_1"] == df["win_3f_2"]) & (df["pred_2"] == df["win_3f_1"]) & (df["pred_3"] == df["win_3f_3"]) |
-                         (df["pred_1"] == df["win_3f_2"]) & (df["pred_2"] == df["win_3f_3"]) & (df["pred_3"] == df["win_3f_1"]) |
-                         (df["pred_1"] == df["win_3f_3"]) & (df["pred_2"] == df["win_3f_1"]) & (df["pred_3"] == df["win_3f_2"]) |
-                         (df["pred_1"] == df["win_3f_3"]) & (df["pred_2"] == df["win_3f_2"]) & (df["pred_3"] == df["win_3f_1"])]
+            df_hits = df[(df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_2"]) & (df["pred_3"] == df["win_3_3"]) |
+                         (df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_3"]) & (df["pred_3"] == df["win_3_2"]) |
+                         (df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_1"]) & (df["pred_3"] == df["win_3_3"]) |
+                         (df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_3"]) & (df["pred_3"] == df["win_3_1"]) |
+                         (df["pred_1"] == df["win_3_3"]) & (df["pred_2"] == df["win_3_1"]) & (df["pred_3"] == df["win_3_2"]) |
+                         (df["pred_1"] == df["win_3_3"]) & (df["pred_2"] == df["win_3_2"]) & (df["pred_3"] == df["win_3_1"])]
             money = sum(df_hits["return_3f"])
             use_money = n_bets * 100
             return_rate = (money / use_money) * 100

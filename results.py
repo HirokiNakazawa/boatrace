@@ -1,76 +1,73 @@
 from tqdm import tqdm
-import requests
-from requests import Response
-from bs4 import BeautifulSoup
+import pandas as pd
 import time
 import re
-import pandas as pd
+import unicodedata
 
 
 class Results:
-    def __init__(self, race_results):
-        self.results = race_results
+    def __init__(self, results: pd.DataFrame) -> None:
+        self.results = results
 
     @staticmethod
-    def scrape(program_list: list):
-        def get_pre_list(url, response):
-            soup: BeautifulSoup = BeautifulSoup(response.content, "lxml")
-            pre_list = soup.find_all("pre")
-            return pre_list
-
-        results = {}
+    def scrape(program_list: list) -> pd.DataFrame:
+        race_results = {}
         for program in tqdm(program_list):
-            time.sleep(1)
             try:
-                url = "https://www1.mbrace.or.jp/od2/K/%s.html" % program
-                response: Response = requests.get(url)
-                if response.status_code == 404:
-                    continue
-                results[program] = get_pre_list(url, response)
-            except IndexError:
+                time.sleep(1)
+                program_split = program.split("/")
+                day = program_split[2]
+                hd = program_split[0] + day
+                jcd = program_split[1]
+                for i, rno in enumerate(range(1, 13, 1)):
+                    try:
+                        race_id = program.replace("/", "") + str(rno).zfill(2)
+                        url = "https://www.boatrace.jp/owpc/pc/race/raceresult?rno=%s&jcd=%s&hd=%s" % (
+                            str(rno).zfill(2), jcd, hd)
+                        df = pd.read_html(url, flavor="lxml")[1]
+
+                        df.index = [race_id] * len(df)
+                        race_results[race_id] = df
+
+                    except ValueError:
+                        continue
+                    except IndexError:
+                        continue
+                    except Exception as e:
+                        print(e)
+                        break
+                    except:
+                        break
+
+            except ValueError:
                 continue
             except Exception as e:
                 print(e)
                 break
             except:
                 break
-        return results
 
-    def preprocessing(self):
-        results = self.results.copy()
+        race_results_df = pd.concat([race_results[key]
+                                    for key in race_results])
+        return race_results_df
 
-        results_list = []
-        for key in tqdm(list(results.keys())):
-            for datas in results[key][1:]:
-                datas = datas.replace("\u3000", "").split("\n")
-                race_id = key.replace(
-                    "/", "") + (re.search(r"\d+R", datas[0]).group()[:-1]).zfill(2)
-                data_dict = {}
-                data_dict["race_id"] = []
-                data_dict["position"] = []
-                data_dict["boat_number"] = []
-                data_dict["racer_number"] = []
-                data_dict["start_time"] = []
-                data_dict["race_time"] = []
-                for data in datas:
-                    data_p = re.findall(r"\S+", data)
-                    if re.match("^\s+0[1-6]", data):
-                        data_dict["race_id"].append(race_id)
-                        data_dict["position"].append(int(data_p[0][-1]))
-                        data_dict["boat_number"].append(data_p[1])
-                        data_dict["racer_number"].append(data_p[2])
-                        data_dict["start_time"].append(data_p[8])
-                        data_dict["race_time"].append(data_p[9])
+    def preprocessing(self) -> None:
+        df = self.results.copy()
 
-                if len(data_dict["position"]) == 6:
-                    df = pd.DataFrame(data_dict)
-                    results_list.append(df.copy())
-                else:
-                    continue
+        df["position"] = df["着"].map(
+            lambda x: unicodedata.normalize("NFKC", x))
+        df["racer_number"] = df["ボートレーサー"].map(
+            lambda x: re.findall(r"\d+", x)[0])
 
-        self.results_p = pd.concat(results_list)
+        df.rename(columns={"枠": "boat_number"}, inplace=True)
+        df.drop(["着", "ボートレーサー", "レースタイム"], axis=1, inplace=True)
 
-    def merge_infos(self, results, infos):
-        results_merge_infos = pd.merge(
-            results, infos, on=["race_id", "艇番", "選手番号"], how="left")
-        return results_merge_infos
+        numeric_rows = pd.to_numeric(df["position"], errors="coerce").isnull()
+        df = df[~df.index.isin(df[numeric_rows].index)]
+
+        df["position"] = df["position"].astype(int)
+        df["boat_number"] = df["boat_number"].astype(int)
+        df["racer_number"] = df["racer_number"].astype(int)
+
+        df.index.name = "race_id"
+        self.results_p = df
