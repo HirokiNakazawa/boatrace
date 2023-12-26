@@ -135,14 +135,14 @@ class BoatRace:
         """
         # DBからデータを取得する
         hdb = HandleDB()
-        results_p = hdb.get_results()
-        infos_p = hdb.get_infos()
-        returns_p = hdb.get_returns()
-        results_all = get_results_merge_infos(results_p, infos_p)
+        results_db = hdb.get_results()
+        infos_db = hdb.get_infos()
+        returns_db = hdb.get_returns()
+        results_all = get_results_merge_infos(results_db, infos_db)
 
         # race_idをindexに変換
         results_all.set_index("race_id", inplace=True)
-        returns_p.set_index("race_id", inplace=True)
+        returns_db.set_index("race_id", inplace=True)
 
         # カテゴリ変数化、前処理
         results_c = process_categorical(results_all)
@@ -150,7 +150,7 @@ class BoatRace:
         X_train, y_train, X_test, y_test = get_train_test(results_c)
 
         # 回収率を算出
-        check_model(returns_p, X_test, seed)
+        check_model(returns_db, X_test, seed)
 
     def save_data(self) -> None:
         """
@@ -158,19 +158,19 @@ class BoatRace:
         """
         # DBからデータを取得する
         hdb = HandleDB()
-        results_p = hdb.get_results()
-        infos_p = hdb.get_infos()
-        returns_p = hdb.get_returns()
+        results_db = hdb.get_results()
+        infos_db = hdb.get_infos()
+        returns_db = hdb.get_returns()
 
         # race_idをindexに変換
-        results_p.set_index("race_id", inplace=True)
-        infos_p.set_index("race_id", inplace=True)
-        returns_p.set_index("race_id", inplace=True)
+        results_db.set_index("race_id", inplace=True)
+        infos_db.set_index("race_id", inplace=True)
+        returns_db.set_index("race_id", inplace=True)
 
         # 保存
-        results_p.to_pickle("output/results_p.pickle")
-        infos_p.to_pickle("output/infos_p.pickle")
-        returns_p.to_pickle("output/returns_p.pickle")
+        results_db.to_dbickle("output/results_db.pickle")
+        infos_db.to_dbickle("output/infos_db.pickle")
+        returns_db.to_dbickle("output/returns_db.pickle")
 
 
 if __name__ == "__main__":
@@ -183,8 +183,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--check", help="現状のモデルの回収率を計算", action="store_true")
     parser.add_argument("-mc", "--model_create", help="モデルを作成",
-                        action="store_true")
-    parser.add_argument("-mu", "--model_update", help="モデルをアップデート",
                         action="store_true")
     parser.add_argument("-sd", "--save_data",
                         help="DBのデータをpickleデータに変換し、保存", action="store_true")
