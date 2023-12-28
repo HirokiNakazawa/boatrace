@@ -42,7 +42,7 @@ class BoatRace:
             # 現状のデータをpickleデータに変換し、保存
             self.save_data()
         elif self.args.debug:
-            pass
+            print("デバッグ実行")
         else:
             print(self.args)
 

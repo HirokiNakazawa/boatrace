@@ -13,6 +13,7 @@ res
 src
 tmp
 
-race_*.json
+*.sh
 *.ipynb
 *.pickle
+*.http
