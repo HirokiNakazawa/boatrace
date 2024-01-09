@@ -6,6 +6,7 @@ from modules.update_data import *
 from modules.program_list import *
 from modules.utils import *
 from modules.predict import *
+from modules.post import *
 import os
 import argparse
 from datetime import datetime
@@ -15,6 +16,8 @@ load_dotenv()
 
 seed = int(os.getenv("SEED"))
 threshold = float(os.getenv("THRESHOLD"))
+token = os.getenv("ACCESS_TOKEN")
+id = os.getenv("USER_ID")
 
 
 class BoatRace:
@@ -43,6 +46,8 @@ class BoatRace:
             self.save_data()
         elif self.args.debug:
             print("デバッグ実行")
+            predict_list = ['戸田6レース 2-4-1', '蒲郡5レース 2-1-3', '徳山6レース 1-2-3']
+            send_message(token, id, predict_list)
         else:
             print(self.args)
 
@@ -127,7 +132,10 @@ class BoatRace:
         race_infos = get_scrape_infos(program_list)
 
         # 当日の予想を行う
-        predict(race_infos, seed, threshold)
+        predict_list = predict(race_infos, seed, threshold)
+
+        # メッセージを送信する
+        send_message(token, id, predict_list)
 
     def check_rate(self) -> None:
         """

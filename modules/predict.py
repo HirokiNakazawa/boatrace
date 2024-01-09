@@ -69,16 +69,23 @@ def predict(race_infos: pd.DataFrame, seed: int = 10, threshold: float = 0.5) ->
 
     df = preprocessing_3(lgb_clf, target_df, threshold=threshold)
 
-    race_id_list = df.index.unique()
     predict_list = []
+
+    if df.empty:
+        predict_list.append("本日賭けるレースはありません")
+        print("本日賭けるレースはありません")
+        return
+
     place_dict = {"01": "桐生", "02": "戸田", "03": "江戸川", "04": "平和島", "05": "多摩川", "06": "浜名湖", "07": "蒲郡", "08": "常滑", "09": "津", "10": "三国", "11": "びわこ",
                   "12": "住之江", "13": "尼崎", "14": "鳴門", "15": "丸亀", "16": "児島", "17": "宮島", "18": "徳山", "19": "下関", "20": "若松", "21": "芦屋", "22": "福岡", "23": "唐津", "24": "大村"}
 
-    for race_id in race_id_list:
-        place_id = race_id[6:8]
-        race = race_id[-2:]
+    for row in df.iterrows():
+        place_id = row[0][6:8]
         place = place_dict[place_id]
-        predict = ("%s%dレース" % (place, int(race)))
-        predict_list.append(predict)
-    df["predict_race"] = predict_list
-    print(df)
+        race = row[0][-2:]
+        predict = "-".join(map(str, row[1].values))
+        predict_str = f"{place}{int(race)}レース {predict}"
+        predict_list.append(predict_str)
+        print(predict_str)
+
+    return predict_list
