@@ -7,6 +7,7 @@ from modules.program_list import *
 from modules.utils import *
 from modules.predict import *
 from modules.post import *
+from modules.operation import *
 import os
 import argparse
 from datetime import datetime
@@ -44,10 +45,11 @@ class BoatRace:
         elif self.args.save_data:
             # 現状のデータをpickleデータに変換し、保存
             self.save_data()
+        elif self.args.operation:
+            # 2024年より運用を開始した場合の損益を算出
+            self.operation()
         elif self.args.debug:
             print("デバッグ実行")
-            predict_list = ['戸田6レース 2-4-1', '蒲郡5レース 2-1-3', '徳山6レース 1-2-3']
-            send_message(token, id, predict_list)
         else:
             print(self.args)
 
@@ -180,6 +182,22 @@ class BoatRace:
         infos_db.to_pickle("output/infos_db.pickle")
         returns_db.to_pickle("output/returns_db.pickle")
 
+    def operation(self) -> None:
+        """
+        2024年より運用を開始した場合の損益を算出する
+        """
+        # DBからデータを取得する
+        hdb = HandleDB()
+        infos_db = hdb.get_infos()
+        returns_db = hdb.get_returns()
+
+        # race_idをindexに変換
+        infos_db.set_index("race_id", inplace=True)
+        returns_db.set_index("race_id", inplace=True)
+
+        # 損益を算出
+        profit(infos_db, returns_db, seed, threshold)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -194,6 +212,8 @@ if __name__ == "__main__":
                         action="store_true")
     parser.add_argument("-sd", "--save_data",
                         help="DBのデータをpickleデータに変換し、保存", action="store_true")
+    parser.add_argument("-o", "--operation",
+                        help="2024年より運用を開始した場合の収益を算出", action="store_true")
     parser.add_argument("-d", "--debug", help="デバッグ用", action="store_true")
     args = parser.parse_args()
 
