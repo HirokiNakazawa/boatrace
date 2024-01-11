@@ -51,7 +51,7 @@ class Returns:
         returns_df = pd.concat([returns[key] for key in returns])
         return returns_df
 
-    def preprocessing(self) -> None:
+    def preprocessing(self):
         data = self.returns.copy()
         race_id_list = data.index.unique()
 
@@ -61,31 +61,22 @@ class Returns:
                 returns_dict = {}
                 df = data[data.index == race_id]
                 df = df.replace(["¥", ","], "", regex=True)
-                returns_dict["win_t"] = int(df[df["勝式"] == "単勝"]["組番"].values)
+                returns_dict["win_1"] = int(
+                    df[df["勝式"] == "3連単"]["組番"].values[0].split("-")[0])
+                returns_dict["win_2"] = int(
+                    df[df["勝式"] == "3連単"]["組番"].values[0].split("-")[1])
+                returns_dict["win_3"] = int(
+                    df[df["勝式"] == "3連単"]["組番"].values[0].split("-")[2])
                 returns_dict["return_t"] = int(
-                    df[df["勝式"] == "単勝"]["払戻金"].values)
-                returns_dict["win_f1"] = int(
-                    df[df["勝式"] == "複勝"]["組番"].values[0])
+                    df[df["勝式"] == "単勝"]["払戻金"].values[0])
                 returns_dict["return_f1"] = int(
                     df[df["勝式"] == "複勝"]["払戻金"].values[0])
-                returns_dict["win_f2"] = int(
-                    df[df["勝式"] == "複勝"]["組番"].values[1])
                 returns_dict["return_f2"] = int(
                     df[df["勝式"] == "複勝"]["払戻金"].values[1])
-                returns_dict["win_2_1"] = int(
-                    df[df["勝式"] == "2連単"]["組番"].values[0].split("-")[0])
-                returns_dict["win_2_2"] = int(
-                    df[df["勝式"] == "2連単"]["組番"].values[0].split("-")[1])
                 returns_dict["return_2t"] = int(
                     df[df["勝式"] == "2連単"]["払戻金"].values[0])
                 returns_dict["return_2f"] = int(
                     df[df["勝式"] == "2連複"]["払戻金"].values[0])
-                returns_dict["win_3_1"] = int(
-                    df[df["勝式"] == "3連単"]["組番"].values[0].split("-")[0])
-                returns_dict["win_3_2"] = int(
-                    df[df["勝式"] == "3連単"]["組番"].values[0].split("-")[1])
-                returns_dict["win_3_3"] = int(
-                    df[df["勝式"] == "3連単"]["組番"].values[0].split("-")[2])
                 returns_dict["return_3t"] = int(
                     df[df["勝式"] == "3連単"]["払戻金"].values[0])
                 returns_dict["return_3f"] = int(

@@ -32,19 +32,14 @@ CREATE TABLE infos(
 
 CREATE TABLE returns(
     race_id varchar(20) NOT NULL,
-    win_t int NOT NULL,
+    win_1 int NOT NULL,
+    win_2 int NOT NULL,
+    win_3 int NOT NULL,
     return_t int NOT NULL,
-    win_f1 int NOT NULL,
     return_f1 int NOT NULL,
-    win_f2 int NOT NULL,
     return_f2 int NOT NULL,
-    win_2_1 int NOT NULL,
-    win_2_2 int NOT NULL,
     return_2t int NOT NULL,
     return_2f int NOT NULL,
-    win_3_1 int NOT NULL,
-    win_3_2 int NOT NULL,
-    win_3_3 int NOT NULL,
     return_3t int NOT NULL,
     return_3f int NOT NULL
 );
