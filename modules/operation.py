@@ -16,26 +16,17 @@ def profit(infos: pd.DataFrame, returns: pd.DataFrame, seed: int = 10, threshold
 
     infos_o = infos[infos["date"] >= "2024-01-01"].copy()
 
-    dfs_by_date = [group for _, group in infos_o.groupby(
-        infos_o['date'].dt.date)]
-    df_3s = []
-    for df_by_date in tqdm(dfs_by_date):
-        target_df = process_categorical(df_by_date, is_predict=True)
-        df_3 = preprocessing_3(lgb_clf, target_df, threshold=0.67)
-        df_3s.append(df_3)
+    target_df = process_categorical(infos_o, is_predict=True)
+    df_p = preprocessing(lgb_clf, target_df, threshold=threshold)
+    df_p = df_p[df_p["pred_3"] != 0]
+    df = pd.merge(df_p, returns[["win_1", "win_2", "win_3", "return_3t"]],
+                  left_index=True, right_index=True, how="left")
 
-    df_3 = pd.concat([data for data in df_3s])
-    df = pd.merge(df_3, returns[["win_3_1", "win_3_2", "win_3_3",
-                  "return_3t"]], left_index=True, right_index=True, how="left")
+    df_hits = df[(((df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_2"])) |
+                  ((df["pred_1"] == df["win_2"]) & (df["pred_2"] == df["win_1"]))) &
+                 (df["pred_3"] == df["win_3"])]
 
-    df_hits = df[(df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_2"]) & (df["pred_3"] == df["win_3_3"]) |
-                 (df["pred_1"] == df["win_3_1"]) & (df["pred_2"] == df["win_3_3"]) & (df["pred_3"] == df["win_3_2"]) |
-                 (df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_1"]) & (df["pred_3"] == df["win_3_3"]) |
-                 (df["pred_1"] == df["win_3_2"]) & (df["pred_2"] == df["win_3_3"]) & (df["pred_3"] == df["win_3_1"]) |
-                 (df["pred_1"] == df["win_3_3"]) & (df["pred_2"] == df["win_3_1"]) & (df["pred_3"] == df["win_3_2"]) |
-                 (df["pred_1"] == df["win_3_3"]) & (df["pred_2"] == df["win_3_2"]) & (df["pred_3"] == df["win_3_1"])]
-
-    use_money = len(df) * 600
+    use_money = len(df) * 200
     return_money = sum(df_hits["return_3t"])
     profit = return_money - use_money
     print(f"収益: {profit} 円")

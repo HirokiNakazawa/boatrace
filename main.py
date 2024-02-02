@@ -50,6 +50,9 @@ class BoatRace:
             self.operation()
         elif self.args.debug:
             print("デバッグ実行")
+            predict_list = ['蒲郡2レース 2-3-1', '丸亀3レース 2-1-6', '丸亀5レース 3-1-2',
+                            '徳山2レース 2-1-3', '福岡3レース 1-2-3', '唐津8レース 2-1-3']
+            send_message(token=token, id=id, predict_list=predict_list)
         else:
             print(self.args)
 

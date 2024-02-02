@@ -84,3 +84,15 @@ def update_returns(returns_p: pd.DataFrame, year: int) -> None:
 
     hdb = HandleDB()
     hdb.insert_returns_data(is_raw=False, returns_p=returns_p_new)
+
+
+def save_update_data(df_new: pd.DataFrame, file_path: Path) -> None:
+    """
+    データを更新する
+    """
+    if file_path.is_file():
+        df_old = pd.read_pickle(file_path)
+        df = pd.concat([df_old, df_new])
+        df.to_pickle(file_path)
+    else:
+        df_new.to_pickle(file_path)

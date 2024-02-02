@@ -13,7 +13,7 @@ import pickle
 from model import ModelEvaluator
 
 
-def gain(return_func: Callable[[float], Tuple[int, float]], n_samples: int = 100) -> pd.DataFrame:
+def gain(return_func: Callable[[float], Tuple[int, float]], n_samples: int = 100, min_n_bets: int = 100) -> pd.DataFrame:
     """
     閾値ごとの回収率を算出する
     """
@@ -21,11 +21,12 @@ def gain(return_func: Callable[[float], Tuple[int, float]], n_samples: int = 100
     try:
         for i in tqdm(range(n_samples)):
             threshold = 0.5 + (((1 - 0.5) / n_samples) * i)
-            df_hits, n_bets, use_money, return_rate = return_func(
+            df_hits, n_bets, use_money, return_rate, return_money = return_func(
                 threshold)
-            gain[threshold] = {"n_bets": n_bets,
-                               "return_rate": return_rate,
-                               "use_money": use_money}
+            if n_bets >= min_n_bets:
+                gain[threshold] = {"n_bets": n_bets,
+                                   "return_rate": return_rate,
+                                   "return_money": return_money}
         return pd.DataFrame(gain).T
     except:
         return pd.DataFrame(gain).T
@@ -40,10 +41,6 @@ def get_gain_dict(lgb_clf: lgb.LGBMClassifier, returns: pd.DataFrame, X_test: pd
     モデルを評価し、gainの辞書を返す
     """
     me = ModelEvaluator(lgb_clf, returns, X_test)
-    gain_t = gain(me.tansho_return)
-    gain_f = gain(me.fukusho_return)
-    gain_2t = gain(me.nirentan_return)
-    gain_2f = gain(me.nirenpuku_return)
     gain_3t = gain(me.sanrentan_return)
     gain_3f = gain(me.sanrenpuku_return)
     gain_3t_1 = gain(me.sanrentan_nagashi_1)
@@ -52,8 +49,8 @@ def get_gain_dict(lgb_clf: lgb.LGBMClassifier, returns: pd.DataFrame, X_test: pd
     gain_3t_12b_n = gain(me.sanrentan_12_box_nagashi)
     gain_3t_b = gain(me.sanrentan_box)
 
-    gain_dict = {"gain_t": gain_t, "gain_f": gain_f, "gain_2t": gain_2t, "gain_2f": gain_2f, "gain_3t": gain_3t, "gain_3f": gain_3f,
-                 "gain_3t_1": gain_3t_1, "gain_3t_2": gain_3t_2, "gain_3t_12b": gain_3t_12b, "gain_3t_12b_n": gain_3t_12b_n, "gain_3t_b": gain_3t_b}
+    gain_dict = {"gain_3t": gain_3t, "gain_3f": gain_3f, "gain_3t_1": gain_3t_1, "gain_3t_2": gain_3t_2,
+                 "gain_3t_12b": gain_3t_12b, "gain_3t_12b_n": gain_3t_12b_n, "gain_3t_b": gain_3t_b}
     return gain_dict
 
 
@@ -64,14 +61,14 @@ def change_format_gain_dict(gain_dict: dict) -> dict:
     gains = {}
     for k, v in gain_dict.items():
         datas = {}
-        data = v[(v["n_bets"] > 100) & (v["return_rate"] > 100)]
+        data = v[(v["n_bets"] > 100) & (v["return_rate"] > 100)
+                 & (v["return_money"] > 10000)]
         if not data.empty:
             for index, row in data.iterrows():
                 datas[index] = {}
                 datas[index]["n_bets"] = row["n_bets"]
                 datas[index]["return_rate"] = row["return_rate"]
-                datas[index]["return_money"] = (
-                    row["use_money"] * row["return_rate"] * 0.01) - row["use_money"]
+                datas[index]["return_money"] = row["return_money"]
             gains[k] = datas
         else:
             pass

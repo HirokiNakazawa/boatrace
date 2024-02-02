@@ -1,6 +1,7 @@
 import pandas as pd
 import lightgbm as lgb
 from sklearn.metrics import roc_auc_score
+from sklearn.preprocessing import MinMaxScaler
 from typing import Tuple
 
 
@@ -13,10 +14,12 @@ class ModelEvaluator:
     def predict_proba(self, X: pd.DataFrame, std: bool = True, minmax: bool = True) -> pd.Series:
         proba = pd.Series(self.model.predict_proba(X)[:, 1], index=X.index)
         if std:
-            def standard_scaler(x): return (x - x.mean()) / x.std(ddof=0)
-            proba = proba.groupby(level=0).transform(standard_scaler)
+            proba = proba.groupby(level=0).transform(
+                lambda x: (x - x.mean()) / x.std(ddof=0))
         if minmax:
-            proba = (proba - proba.min()) / (proba.max() - proba.min())
+            scaler = MinMaxScaler()
+            proba = proba.groupby(level=0).transform(
+                lambda x: scaler.fit_transform(x.values.reshape(-1, 1)).flatten())
         return proba
 
     def rank_join(self, X: pd.DataFrame) -> pd.DataFrame:
@@ -52,74 +55,53 @@ class ModelEvaluator:
                         right_index=True, how="left")
         return df_m
 
-    def hits(self, df: pd.DataFrame, kind: str = "") -> Tuple[pd.DataFrame, int, int, float] | None:
+    def hits(self, df: pd.DataFrame, kind: str = "") -> Tuple[pd.DataFrame, int, int, float, int] | None:
         n_bets = len(df)
-        if kind == "tansho":
-            df_hits = df[df["pred_1"] == df["win_1"]]
-            money = sum(df_hits["return_t"])
-            use_money = n_bets * 100
-            return_rate = (money / use_money) * 100
-        elif kind == "fukusho":
-            df_hits = df[(df["pred_1"] == df["win_1"]) |
-                         (df["pred_1"] == df["win_2"])]
-            money = sum(df[df["pred_1"] == df["win_1"]]["return_f1"]) + \
-                sum(df[df["pred_1"] == df["win_2"]]["return_f2"])
-            use_money = n_bets * 100
-            return_rate = (money / use_money) * 100
-        elif kind == "nirentan":
+        if kind == "nirentan":
             df_hits = df[(df["pred_1"] == df["win_1"]) &
                          (df["pred_2"] == df["win_2"])]
             money = sum(df_hits["return_2t"])
             use_money = n_bets * 100
-            return_rate = (money / use_money) * 100
         elif kind == "nirentan_nagashi":
             df_hits = df[df["pred_1"] == df["win_1"]]
             money = sum(df_hits["return_2t"])
             use_money = n_bets * 500
-            return_rate = (money / use_money) * 100
         elif kind == "nirentan_box":
             df_hits = df[((df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_2"])) |
                          ((df["pred_1"] == df["win_2"]) & (df["pred_2"] == df["win_1"]))]
             money = sum(df_hits["return_2t"])
             use_money = n_bets * 200
-            return_rate = (money / use_money) * 100
         elif kind == "nirenpuku":
             n_bets = len(df)
             df_hits = df[((df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_2"])) |
                          ((df["pred_1"] == df["win_2"]) & (df["pred_2"] == df["win_1"]))]
             money = sum(df_hits["return_2f"])
             use_money = n_bets * 100
-            return_rate = (money / use_money) * 100
         elif kind == "sanrentan":
             df_hits = df[(df["pred_1"] == df["win_1"]) & (
                 df["pred_2"] == df["win_2"]) & (df["pred_3"] == df["win_3"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 100
-            return_rate = (money / use_money) * 100
         elif kind == "sanrentan_nagashi_1":
             df_hits = df[df["pred_1"] == df["win_1"]]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 2000
-            return_rate = (money / use_money) * 100
         elif kind == "sanrentan_nagashi_2":
             df_hits = df[(df["pred_1"] == df["win_1"]) &
                          (df["pred_2"] == df["win_2"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 400
-            return_rate = (money / use_money) * 100
         elif kind == "sanrentan_12_box":
             df_hits = df[(((df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_2"])) |
                          ((df["pred_1"] == df["win_2"]) & (df["pred_2"] == df["win_1"]))) &
                          (df["pred_3"] == df["win_3"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 200
-            return_rate = (money / use_money) * 100
         elif kind == "sanrentan_12_box_nagashi":
             df_hits = df[((df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_2"])) |
                          ((df["pred_1"] == df["win_2"]) & (df["pred_2"] == df["win_1"]))]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 800
-            return_rate = (money / use_money) * 100
         elif kind == "sanrentan_box":
             df_hits = df[(df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_2"]) & (df["pred_3"] == df["win_3"]) |
                          (df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_3"]) & (df["pred_3"] == df["win_2"]) |
@@ -129,7 +111,6 @@ class ModelEvaluator:
                          (df["pred_1"] == df["win_3"]) & (df["pred_2"] == df["win_2"]) & (df["pred_3"] == df["win_1"])]
             money = sum(df_hits["return_3t"])
             use_money = n_bets * 600
-            return_rate = (money / use_money) * 100
         elif kind == "sanrenpuku":
             df_hits = df[(df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_2"]) & (df["pred_3"] == df["win_3"]) |
                          (df["pred_1"] == df["win_1"]) & (df["pred_2"] == df["win_3"]) & (df["pred_3"] == df["win_2"]) |
@@ -139,71 +120,64 @@ class ModelEvaluator:
                          (df["pred_1"] == df["win_3"]) & (df["pred_2"] == df["win_2"]) & (df["pred_3"] == df["win_1"])]
             money = sum(df_hits["return_3f"])
             use_money = n_bets * 100
-            return_rate = (money / use_money) * 100
         else:
             print("kind is not found")
             return
-        return df_hits, n_bets, use_money, return_rate
+        return_rate = (money / use_money) * 100
+        return_money = money - use_money
+        return df_hits, n_bets, use_money, return_rate, return_money
 
-    def tansho_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
-        df = self.preprocessing(threshold)
-        return self.hits(df, kind="tansho")
-
-    def fukusho_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
-        df = self.preprocessing(threshold)
-        return self.hits(df, kind="fukusho")
-
-    def nirentan_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def nirentan_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_2"] != 0]
         return self.hits(df, kind="nirentan")
 
-    def nirentan_nagashi(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def nirentan_nagashi(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_2"] != 0]
         return self.hits(df, kind="nirentan_nagashi")
 
-    def nirentan_box(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def nirentan_box(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_2"] != 0]
         return self.hits(df, kind="nirentan_box")
 
-    def nirenpuku_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def nirenpuku_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_2"] != 0]
         return self.hits(df, kind="nirenpuku")
 
-    def sanrentan_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def sanrentan_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_3"] != 0]
         return self.hits(df, kind="sanrentan")
 
-    def sanrentan_nagashi_1(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def sanrentan_nagashi_1(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_3"] != 0]
         return self.hits(df, kind="sanrentan_nagashi_1")
 
-    def sanrentan_nagashi_2(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def sanrentan_nagashi_2(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_3"] != 0]
         return self.hits(df, kind="sanrentan_nagashi_2")
 
-    def sanrentan_12_box(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def sanrentan_12_box(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_3"] != 0]
         return self.hits(df, kind="sanrentan_12_box")
 
-    def sanrentan_12_box_nagashi(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def sanrentan_12_box_nagashi(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_3"] != 0]
         return self.hits(df, kind="sanrentan_12_box_nagashi")
 
-    def sanrentan_box(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def sanrentan_box(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_3"] != 0]
         return self.hits(df, kind="sanrentan_box")
 
-    def sanrenpuku_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float]:
+    def sanrenpuku_return(self, threshold: float = 0.5) -> Tuple[pd.DataFrame, int, int, float, int]:
         df = self.preprocessing(threshold)
         df = df[df["pred_3"] != 0]
         return self.hits(df, kind="sanrenpuku")

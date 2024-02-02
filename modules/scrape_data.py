@@ -61,6 +61,6 @@ def save_scrape_data(results: pd.DataFrame, infos: pd.DataFrame, returns: pd.Dat
         returns_p.to_pickle(returns_tmp_name)
 
     hdb = HandleDB()
-    hdb.insert_results_data(is_raw=True, results_p=results_p)
-    hdb.insert_infos_data(is_raw=True, infos_p=infos_p)
-    hdb.insert_returns_data(is_raw=True, returns_p=returns_p)
+    hdb.insert_results_data(is_raw=False, results_p=results_p)
+    hdb.insert_infos_data(is_raw=False, infos_p=infos_p)
+    hdb.insert_returns_data(is_raw=False, returns_p=returns_p)

@@ -82,19 +82,14 @@ boatrace_db
   | カラム名  | 型定義      |
   | --------- | ----------- |
   | race_id   | varchar(20) |
-  | win_t     | int         |
+  | win_1     | int         |
+  | win_2     | int         |
+  | win_3     | int         |
   | return_t  | int         |
-  | win_f1    | int         |
   | return_f1 | int         |
-  | win_f2    | int         |
   | return_f2 | int         |
-  | win_2_1   | int         |
-  | win_2_2   | int         |
   | return_2t | int         |
   | return_2f | int         |
-  | win_3_1   | int         |
-  | win_3_2   | int         |
-  | win_3_3   | int         |
   | return_3t | int         |
   | return_3f | int         |
 
@@ -103,5 +98,3 @@ boatrace_db
   モデルの閾値別の回収率ファイル
 - model_*.pickle  
   モデルを格納したファイル
-- thresholds.json  
-  予想の際に使用する閾値ファイル

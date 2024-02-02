@@ -2,6 +2,7 @@
 予測関連の関数群
 """
 
+from sklearn.preprocessing import MinMaxScaler
 import lightgbm as lgb
 import pandas as pd
 import pickle
@@ -10,12 +11,12 @@ from modules.utils import *
 
 
 def predict_proba(model: lgb.LGBMClassifier, X: pd.DataFrame) -> pd.Series:
-    def standard_scaler(x):
-        return (x - x.mean()) / x.std(ddof=0)
-
     proba = pd.Series(model.predict_proba(X)[:, 1], index=X.index)
-    proba = proba.groupby(level=0).transform(standard_scaler)
-    proba = (proba - proba.min()) / (proba.max() - proba.min())
+    proba = proba.groupby(level=0).transform(
+        lambda x: (x - x.mean()) / x.std(ddof=0))
+    scaler = MinMaxScaler()
+    proba = proba.groupby(level=0).transform(
+        lambda x: scaler.fit_transform(x.values.reshape(-1, 1)).flatten())
     return proba
 
 
@@ -28,32 +29,24 @@ def rank_join(model: lgb.LGBMClassifier, X: pd.DataFrame) -> pd.DataFrame:
 
 def pred_table(model: lgb.LGBMClassifier, target_df: pd.DataFrame, threshold: float = 0.5) -> pd.DataFrame:
     df = rank_join(model, target_df)
-    df["pred_0"] = [0 if p < threshold else 1 for p in df["point"]]
-    df["pred_1"] = ((df["pred_0"] == 1) & (df["rank"] == 1)) * 1
-    df["pred_2"] = ((df["pred_0"] == 1) & (df["rank"] == 2)) * 1
-    df["pred_3"] = ((df["pred_0"] == 1) & (df["rank"] == 3)) * 1
+    df["pred_1"] = ((df["point"] > threshold) & (df["rank"] == 1)) * 1
+    df["pred_2"] = ((df["point"] > threshold) & (df["rank"] == 2)) * 1
+    df["pred_3"] = ((df["point"] > threshold) & (df["rank"] == 3)) * 1
     return df
 
 
-def preprocessing_3(model: lgb.LGBMClassifier, target_df: pd.DataFrame, threshold: float) -> pd.DataFrame:
+def preprocessing(model: lgb.LGBMClassifier, target_df: pd.DataFrame, threshold: float = 0.5) -> pd.DataFrame:
     """
-    上位3艇の予想データを返す
+    データを整形する
     """
     df = pred_table(model, target_df, threshold)
-    df_3_1 = pd.DataFrame(df[df["pred_1"] == 1]["boat_number"]).rename(
-        columns={"boat_number": "pred_1"})
-    df_3_2 = pd.DataFrame(df[df["pred_2"] == 1]["boat_number"]).rename(
-        columns={"boat_number": "pred_2"})
-    df_3_3 = pd.DataFrame(df[df["pred_3"] == 1]["boat_number"]).rename(
-        columns={"boat_number": "pred_3"})
-    df_3_12 = pd.merge(df_3_1, df_3_2, left_index=True,
-                       right_index=True, how="right")
-    df_3 = pd.merge(df_3_12, df_3_3, left_index=True,
-                    right_index=True, how="right")
-    df_3["pred_1"] = df_3["pred_1"].astype(int)
-    df_3["pred_2"] = df_3["pred_2"].astype(int)
-    df_3["pred_3"] = df_3["pred_3"].astype(int)
-    return df_3
+    df_p = pd.DataFrame()
+    df["boat_number"] = df["boat_number"].astype(int)
+    df_p["pred_1"] = pd.DataFrame(df[df["pred_1"] == 1]["boat_number"])
+    df_p["pred_2"] = pd.DataFrame(df[df["pred_2"] == 1]["boat_number"])
+    df_p["pred_3"] = pd.DataFrame(df[df["pred_3"] == 1]["boat_number"])
+    df_p.fillna(0, inplace=True)
+    return df_p
 
 
 def predict(race_infos: pd.DataFrame, seed: int = 10, threshold: float = 0.5) -> None:
@@ -67,7 +60,8 @@ def predict(race_infos: pd.DataFrame, seed: int = 10, threshold: float = 0.5) ->
     with open(model_file_name, mode="rb") as f:
         lgb_clf = pickle.load(f)
 
-    df = preprocessing_3(lgb_clf, target_df, threshold=threshold)
+    df = preprocessing(lgb_clf, target_df, threshold=threshold)
+    df = df[df["pred_3"] != 0]
 
     predict_list = []
 
@@ -83,7 +77,8 @@ def predict(race_infos: pd.DataFrame, seed: int = 10, threshold: float = 0.5) ->
         place_id = row[0][6:8]
         place = place_dict[place_id]
         race = row[0][-2:]
-        predict = "-".join(map(str, row[1].values))
+        data = row[1].astype("int")
+        predict = "-".join(map(str, data.values))
         predict_str = f"{place}{int(race)}レース {predict}"
         predict_list.append(predict_str)
         print(predict_str)

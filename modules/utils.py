@@ -64,15 +64,3 @@ def process_categorical(results: pd.DataFrame, is_predict: bool = False):
         df["rank"] = df["position"].map(lambda x: 1 if x <= 2 else 0)
         df.drop("position", axis=1, inplace=True)
     return df
-
-
-def save_update_data(df_new: pd.DataFrame, file_path: Path) -> None:
-    """
-    データを更新する
-    """
-    if file_path.is_file():
-        df_old = pd.read_pickle(file_path)
-        df = pd.concat([df_old, df_new])
-        df.to_pickle(file_path)
-    else:
-        df_new.to_pickle(file_path)
